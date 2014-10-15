@@ -151,7 +151,7 @@ contains
     allocate ( pNCFILE, stat=iStat )
       call assert( iStat == 0, "Problem allocating memory", __FILE__, __LINE__ )
 
-    call netcdf_open_and_prepare_as_output( NCFILE=pNCFILE, sVariableName="D8_flow_accululation", &
+    call netcdf_open_and_prepare_as_output( NCFILE=pNCFILE, sVariableName="D8_flow_accumulation", &
       sVariableUnits="number of upslope contributing cells", iNX=iNX, iNY=iNY, &
       fX=dX, fY=dY, StartDate=SIM_DT%start, EndDate=SIM_DT%end, dpLat=dY_lat, dpLon=dX_lon, &
       iVarType = NC_INT )

@@ -883,6 +883,8 @@ subroutine netcdf_open_and_prepare_as_output( NCFILE, sVariableName, sVariableUn
 
   call LOGS%write("Attempting to open NetCDF file for writing with filename "//dquote(sFilename))
 
+  call LOGS%write("  ==> variable type = "//dquote(NETCDF_DATA_TYPE(iVarType_) ) )
+
   call nf_create(NCFILE=NCFILE, sFilename=trim(sFilename) )
 
   !> set dimension values in the NCFILE struct
@@ -3547,8 +3549,6 @@ subroutine netcdf_put_variable_array(NCFILE, iVarID, iStart, iCount, iStride, &
                        __FILE__, __LINE__)
 
   elseif (present(dpValues) ) then
-
-
 
     call nf_trap(nc_put_vars_double(ncid=NCFILE%iNCID, &
                        varid=iVarID, &
