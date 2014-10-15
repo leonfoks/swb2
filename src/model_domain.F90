@@ -1123,27 +1123,30 @@ contains
 
     ! [ LOCALS ]
     integer (kind=c_int) :: index
+    integer (kind=c_int) :: index_order
 
 !     if ( associated(this%calc_routing) ) then
 
       do index=lbound(this%runon,1), ubound(this%runon,1)
 
-        this%inflow(index) =   this%runon(index)                      &
-                             + this%gross_precip(index)               &
-                             + this%fog(index)                        &
-                             + this%snowmelt(index)                   &
-                             - this%interception(index)                      
+        index_order = ORDER_INDEX( index )
+
+        this%inflow(index_order) =   this%runon(index_order)                &
+                             + this%gross_precip(index_order)               &
+                             + this%fog(index_order)                        &
+                             + this%snowmelt(index_order)                   &
+                             - this%interception(index_order)                      
                              
-        call this%calc_infiltration( index )
+        call this%calc_infiltration( index_order )
 
-        this%runoff(index) = this%inflow(index) - this%infiltration(index)
+        this%runoff(index_order) = this%inflow(index_order) - this%infiltration(index_order)
 
-        if ( TARGET_INDEX( index ) /= D8_UNDETERMINED ) then
-          this%runon(TARGET_INDEX( index ) ) = this%runoff(index)
+        if ( TARGET_INDEX( index_order ) /= D8_UNDETERMINED ) then
+          this%runon(TARGET_INDEX( index_order ) ) = this%runoff(index_order)
 
         endif
 
-        call this%calc_soil_moisture(index)
+        call this%calc_soil_moisture(index_order)
 
       enddo  
 
@@ -1406,7 +1409,8 @@ contains
 
     class (MODEL_DOMAIN_T), intent(inout)  :: this
 
-    call routing_D8_initialize( this%active )
+    call routing_D8_initialize( lActive=this%active, dX=this%X, dY=this%Y, &
+      dX_lon=pCOORD_GRD%rX , dY_lat=pCOORD_GRD%rY )
 
   end subroutine model_initialize_routing_D8  
 

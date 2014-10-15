@@ -40,18 +40,18 @@ module netcdf4_support
 
   private
 
-  public :: NC_FLOAT, NC_FILL_FLOAT
+  public :: NC_FILL_FLOAT
 
   integer(kind=c_int), public :: NC_READONLY          = 0
   integer(kind=c_int), public :: NC_READWRITE         = 1
 
-  integer(kind=c_int), parameter ::  NC_NAT    = 0
-  integer(kind=c_int), parameter ::  NC_BYTE   = 1
-  integer(kind=c_int), parameter ::  NC_CHAR   = 2
-  integer(kind=c_int), parameter ::  NC_SHORT  = 3
-  integer(kind=c_int), parameter ::  NC_INT    = 4
-  integer(kind=c_int), parameter ::  NC_FLOAT  = 5
-  integer(kind=c_int), parameter ::  NC_DOUBLE = 6
+  integer(kind=c_int), parameter, public ::  NC_NAT    = 0
+  integer(kind=c_int), parameter, public ::  NC_BYTE   = 1
+  integer(kind=c_int), parameter, public ::  NC_CHAR   = 2
+  integer(kind=c_int), parameter, public ::  NC_SHORT  = 3
+  integer(kind=c_int), parameter, public ::  NC_INT    = 4
+  integer(kind=c_int), parameter, public ::  NC_FLOAT  = 5
+  integer(kind=c_int), parameter, public ::  NC_DOUBLE = 6
 
   integer(kind=c_int), parameter :: NC_FILL_CHAR    = 0
   integer(kind=c_int), parameter :: NC_FILL_BYTE    = -127
@@ -830,7 +830,7 @@ end subroutine netcdf_open_and_prepare_as_output_archive
 
 
 subroutine netcdf_open_and_prepare_as_output( NCFILE, sVariableName, sVariableUnits, &
-   iNX, iNY, fX, fY, StartDate, EndDate, dpLat, dpLon, fValidMin, fValidMax )
+   iNX, iNY, fX, fY, StartDate, EndDate, dpLat, dpLon, fValidMin, fValidMax, iVarType )
 
   type (T_NETCDF4_FILE ), pointer            :: NCFILE
   character (len=*), intent(in)              :: sVariableName
@@ -845,12 +845,14 @@ subroutine netcdf_open_and_prepare_as_output( NCFILE, sVariableName, sVariableUn
   real (kind=c_double), intent(in), optional :: dpLon(:,:)
   real (kind=c_float), intent(in), optional  :: fValidMin
   real (kind=c_float), intent(in), optional  :: fValidMax
+  integer (kind=c_int), intent(in), optional :: iVarType
 
 
 !   ! [ LOCALS ]
   type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
   type (T_NETCDF_DIMENSION), pointer :: pNC_DIM
   integer (kind=c_int) :: iIndex
+  integer (kind=c_int) :: iVarType_
   character (len=10)                                :: sOriginText
   character (len=256)                               :: sFilename
 
@@ -865,6 +867,12 @@ subroutine netcdf_open_and_prepare_as_output( NCFILE, sVariableName, sVariableUn
 !     integer (kind=c_int)            :: iLengthUnits= -99999  ! length units code
 !     real (kind=c_double)            :: rX0, rX1              ! World-coordinate range in X
 !     real (kind=c_double)            :: rY0, rY1              ! World-coordinate range in Y
+
+  if ( present( iVarType ) ) then
+    iVarType_ = iVarType
+  else
+    iVarType_ = NC_FLOAT
+  endif  
 
   write(sOriginText, fmt="(i4.4,'-',i2.2,'-',i2.2)") StartDate%iYear, StartDate%iMonth, StartDate%iDay
 
@@ -889,7 +897,8 @@ subroutine netcdf_open_and_prepare_as_output( NCFILE, sVariableName, sVariableUn
   call nf_define_dimensions( NCFILE=NCFILE )
   
   !> set variable values in the NCFILE struct
-  call nf_set_standard_variables(NCFILE=NCFILE, sVarName_z = sVariableName, lLatLon=lTRUE )
+  call nf_set_standard_variables(NCFILE=NCFILE, sVarName_z = sVariableName, lLatLon=lTRUE, &
+    iVarType = iVarType_ )
   
   !> transfer variable values to NetCDF file
   call nf_define_variables(NCFILE=NCFILE)
@@ -2785,21 +2794,29 @@ end subroutine nf_set_standard_dimensions
 
 !----------------------------------------------------------------------
 
-subroutine nf_set_standard_variables(NCFILE, sVarName_z, lLatLon)
+subroutine nf_set_standard_variables(NCFILE, sVarName_z, lLatLon, iVarType)
 
   type (T_NETCDF4_FILE )            :: NCFILE
   character (len=*)                 :: sVarName_z
   logical (kind=c_bool), optional   :: lLatLon
+  integer (kind=c_int), optional    :: iVarType
 
   ! [ LOCALS ]
-  integer (kind=c_int) :: iStat
+  integer (kind=c_int)  :: iStat
   logical (kind=c_bool) :: lLatLon_
+  integer (kind=c_int)  iVarType_
 
   if (present( lLatLon) ) then
     lLatLon_ = lLatLon
   else
     lLatLon_ = lFALSE
   endif   
+
+  if (present( iVarType) ) then
+    iVarType_ = iVarType
+  else
+    iVarType_ = NC_FLOAT
+  endif    
 
   iStat = 0
 

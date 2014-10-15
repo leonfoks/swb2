@@ -3,6 +3,8 @@ module routing__D8
   use iso_c_binding, only : c_short, c_int, c_float, c_double, c_bool
   use data_catalog
   use data_catalog_entry
+  use netcdf4_support
+  use simulation_datetime
   use exceptions
   implicit none
 
@@ -10,7 +12,7 @@ module routing__D8
 
   private
 
-  public :: routing_D8_initialize, routing_D8_calculate, D8_UNDETERMINED, TARGET_INDEX
+  public :: routing_D8_initialize, routing_D8_calculate, D8_UNDETERMINED, TARGET_INDEX, ORDER_INDEX
 
   type (DATA_CATALOG_ENTRY_T), pointer :: pD8_FLOWDIR    ! data catalog object => D8 flow direction grid
 
@@ -40,11 +42,17 @@ module routing__D8
 
   integer (kind=c_int), parameter       :: D8_UNDETERMINED = -999
 
+  type (T_NETCDF4_FILE), pointer       :: pNCFILE ! pointer to OUTPUT NetCDF file
+
 contains
 
-  subroutine routing_D8_initialize( lActive )
+  subroutine routing_D8_initialize( lActive, dX, dY, dX_lon, dY_lat )
 
-    logical (kind=c_bool), intent(in)    :: lActive(:,:)
+    logical (kind=c_bool), intent(in)     :: lActive(:,:)
+    real (kind=c_double), intent(in)      :: dX(:)
+    real (kind=c_double), intent(in)      :: dY(:)
+    real (kind=c_double), intent(in)      :: dX_lon(:,:)
+    real (kind=c_double), intent(in)      :: dY_lat(:,:)
 
     ! [ LOCALS ]
     integer (kind=c_int)                 :: iNX
@@ -139,6 +147,31 @@ contains
     ROW1D = pack( ROW2D, lActive )	
 
     call routing_D8_determine_solution_order( lActive )    
+
+    allocate ( pNCFILE, stat=iStat )
+      call assert( iStat == 0, "Problem allocating memory", __FILE__, __LINE__ )
+
+    call netcdf_open_and_prepare_as_output( NCFILE=pNCFILE, sVariableName="D8_flow_accululation", &
+      sVariableUnits="number of upslope contributing cells", iNX=iNX, iNY=iNY, &
+      fX=dX, fY=dY, StartDate=SIM_DT%start, EndDate=SIM_DT%end, dpLat=dY_lat, dpLon=dX_lon, &
+      iVarType = NC_INT )
+
+    ! write timestamp to NetCDF file
+    call netcdf_put_variable_vector(NCFILE=pNCFILE, &
+      iVarID=pNCFILE%iVarID(NC_TIME), &
+      iStart=[0_c_size_t], &
+      iCount=[1_c_size_t], &
+      iStride=[1_c_ptrdiff_t], &
+      dpValues=[0.0_c_double])
+
+    call netcdf_put_variable_array(NCFILE=pNCFILE, &
+    	           iVarID=pNCFILE%iVarID(NC_Z), &
+                 iStart=[0_c_size_t,0_c_size_t, 0_c_size_t], &
+                 iCount=[1_c_size_t, int(iNY, kind=c_size_t), int(iNX, kind=c_size_t)],              &
+                 iStride=[1_c_ptrdiff_t, 1_c_ptrdiff_t, 1_c_ptrdiff_t],                         &
+                 iValues=iSumOfUpslopeCells)
+
+    call netcdf_close_file( pNCFILE )
 
   end subroutine routing_D8_initialize
 
@@ -376,7 +409,7 @@ main_loop: do
 	 			           	  
 	 			           	  else
 
-	 			                iTempSum = iTempSum + iSumOfUpslopeCells(iColsrch, iRowsrch)
+	 			                iTempSum = iTempSum + iSumOfUpslopeCells(iColsrch, iRowsrch) + 1
 	 			                iTempConnections = iTempConnections + 1 
 	 			           	  
 	 			           	  endif
