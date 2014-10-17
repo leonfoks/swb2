@@ -883,8 +883,6 @@ subroutine netcdf_open_and_prepare_as_output( NCFILE, sVariableName, sVariableUn
 
   call LOGS%write("Attempting to open NetCDF file for writing with filename "//dquote(sFilename))
 
-  call LOGS%write("  ==> variable type = "//dquote(NETCDF_DATA_TYPE(iVarType_) ) )
-
   call nf_create(NCFILE=NCFILE, sFilename=trim(sFilename) )
 
   !> set dimension values in the NCFILE struct
@@ -2852,7 +2850,7 @@ subroutine nf_set_standard_variables(NCFILE, sVarName_z, lLatLon, iVarType)
   NCFILE%pNC_VAR(NC_X)%iNC_DimID = NCFILE%pNC_DIM(NC_X)%iNC_DimID  
 
   NCFILE%pNC_VAR(NC_Z)%sVariableName = trim(sVarName_z)
-  NCFILE%pNC_VAR(NC_Z)%iNC_VarType = NC_FLOAT
+  NCFILE%pNC_VAR(NC_Z)%iNC_VarType = iVarType_
   NCFILE%pNC_VAR(NC_Z)%iNumberOfDimensions = 3
   NCFILE%pNC_VAR(NC_Z)%iNC_DimID = [NCFILE%pNC_DIM(NC_TIME)%iNC_DimID, &
                                  NCFILE%pNC_DIM(NC_Y)%iNC_DimID, &

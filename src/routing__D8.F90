@@ -185,6 +185,8 @@ contains
 
     ! [ LOCALS ]
     integer (kind=c_int)   :: iOrderIndex
+
+    iIndex = D8_UNDETERMINED
  
     do iOrderIndex = lbound(COL1D,1), ubound(COL1D,1) 
 
@@ -218,8 +220,8 @@ contains
     associate ( dir => pD8_FLOWDIR%pGrdBase%iData )
 
 
-	    do iColnum=iCol_lbound, iCol_ubound
-	    	do iRownum=iRow_lbound, iRow_ubound
+	    do iRownum=iRow_lbound, iRow_ubound
+  	    do iColnum=iCol_lbound, iCol_ubound
 
           select case ( dir(iColnum, iRownum) )
 
@@ -298,6 +300,8 @@ contains
     integer (kind=c_int)  :: iNumberRemaining
     integer (kind=c_int)  :: iOrderIndex
     integer (kind=c_int)  :: iIndex
+    logical (kind=c_bool) :: lCircular
+    integer (kind=c_int)  :: iNumberOfIterationsWithoutChange 
 
     iCol_lbound = lbound(lActive, 1)
     iCol_ubound = ubound(lActive, 1)
@@ -311,16 +315,17 @@ contains
     iOrderIndex = 0
 
     ! first pass through: simply make a note of how many upslope connections feed into each cell
-    do iColnum=iCol_lbound, iCol_ubound
-	    do iRownum=iRow_lbound, iRow_ubound
+    do iRownum=iRow_lbound, iRow_ubound
+      do iColnum=iCol_lbound, iCol_ubound
 
         ! ignore current cell if it is not an active cell
 	      if ( .not. lActive(iColnum, iRownum) ) cycle
-	        
-        iTempConnections = 0_c_int
 
-        do iColsrch=max( iColNum-1, iCol_lbound),min( iColnum+1, iCol_ubound) 			    
-          do iRowsrch=max( iRowNum-1, iRow_lbound),min( iRownum+1, iRow_ubound) 
+        lCircular = lFALSE
+        iTempConnections = 0_c_int
+		    
+        do iRowsrch=max( iRowNum-1, iRow_lbound),min( iRownum+1, iRow_ubound) 
+          do iColsrch=max( iColNum-1, iCol_lbound),min( iColnum+1, iCol_ubound) 			    
 
             ! ignore search cell if it is not an active cell
 	          if ( .not. lActive(iColsrch, iRowsrch) ) cycle
@@ -328,22 +333,22 @@ contains
             ! no need to consider current cell
             if ( ( iColsrch == iColnum ) .and. ( iRowsrch == iRownum ) )  cycle
 
-	            ! if adjacent cell points to current cell, note it and move on	
-	            if ( ( iTargetCol(iColsrch, iRowsrch) == iColnum ) &
-	            	.and. ( iTargetRow(iColsrch, iRowsrch) == iRownum ) )    &
+            ! if adjacent cell points to current cell, note it and move on	
+            if ( ( iTargetCol(iColsrch, iRowsrch) == iColnum ) &
+            	.and. ( iTargetRow(iColsrch, iRowsrch) == iRownum ) )    &
 
-	                iTempConnections = iTempConnections + 1 
-	  
-              ! if the current cell points back at the search cell, we have
-              ! circular flow. convert the current cell to an undetermined
-              ! flow direction	  
-              if ( ( iTargetCol(iColnum, iRownum) == iColsrch )      &
-	            	.and. ( iTargetRow(iColnum, iRownum) == iRowsrch ) ) then
+              iTempConnections = iTempConnections + 1 
+  
+!             ! if the current cell points back at the search cell, we have
+!             ! circular flow. convert the current cell to an undetermined
+!             ! flow direction	  
+!             if ( ( iTargetCol(iColnum, iRownum) == iColsrch )      &
+!             	.and. ( iTargetRow(iColnum, iRownum) == iRowsrch ) ) then
 
-                iTargetCol( iColnum, iRownum ) = D8_UNDETERMINED
-                iTargetRow( iColnum, iRownum ) = D8_UNDETERMINED
+!               iTargetCol( iColnum, iRownum ) = D8_UNDETERMINED
+!               iTargetRow( iColnum, iRownum ) = D8_UNDETERMINED
 
-              endif                 
+!             endif                 
 
           enddo                  
         enddo    
@@ -351,21 +356,35 @@ contains
         iNumberOfConnections(iColnum, iRownum) = iTempConnections
         
         if ( iTempConnections == 0 ) then
+
           lDownhillMarked(iColnum, iRownum) = lTRUE
           iOrderIndex = iOrderIndex + 1
           COLUMN_INDEX(iOrderIndex) = iColnum
           ROW_INDEX(iOrderIndex) = iRownum
           ORDER_INDEX(iOrderIndex) = routing_D8_get_index( iColnum, iRownum ) 
 
+          ! this is the first pass through. if there are no contributing cells
+          ! then record the target index and record the cell as marked
           if ( iTargetCol(iColNum,iRowNum) /= D8_UNDETERMINED           &
           	 .and. iTargetRow(iColNum, iRowNum) /= D8_UNDETERMINED ) then
-               TARGET_INDEX(iOrderIndex) = routing_D8_get_index( iTargetCol(iColnum, iRownum ), &
+            TARGET_INDEX(iOrderIndex) = routing_D8_get_index( iTargetCol(iColnum, iRownum ), &
           	      iTargetRow( iColNum, iRowNum ) )
           else
           
             TARGET_INDEX(iOrderIndex) = D8_UNDETERMINED
 
           endif
+
+        elseif ( iTempConnections == 1 .and. lCircular ) then
+        
+          iTargetCol( iColnum, iRownum ) = D8_UNDETERMINED
+          iTargetRow( iColnum, iRownum ) = D8_UNDETERMINED
+          lDownhillMarked(iColnum, iRownum) = lTRUE
+          iOrderIndex = iOrderIndex + 1
+          COLUMN_INDEX(iOrderIndex) = iColnum
+          ROW_INDEX(iOrderIndex) = iRownum
+          ORDER_INDEX(iOrderIndex) = routing_D8_get_index( iColnum, iRownum ) 
+          TARGET_INDEX(iOrderIndex) = D8_UNDETERMINED
 
         endif  
 
@@ -376,24 +395,25 @@ contains
       //"out of ", count( lActive ), " active cells."
 
 
+iNumberOfIterationsWithoutChange = 0
+
 main_loop: do
 
-      iNumberOfChangedCells = 0_c_int
+      iNumberOfChangedCells = 0
 
-	    do iColnum=iCol_lbound, iCol_ubound
-	    	do iRownum=iRow_lbound, iRow_ubound
-
+	    do iRownum=iRow_lbound, iRow_ubound
+        do iColnum=iCol_lbound, iCol_ubound
+ 
 	        if ( .not. lActive(iColnum, iRownum) ) cycle
 	        if ( lDownhillMarked(iColnum, iRownum) ) cycle
 
-          iNumberOfChangedCells = iNumberOfChangedCells + 1
-	        iTempSum = 0_c_int
-	        iTempConnections = 0_c_int
+	        iTempSum = 0
+	        iTempConnections = 0
 	        lAnyUnmarkedUpslopeCells = lFALSE
 
-	local_search: do iColsrch=max( iColNum-1, iCol_lbound),min( iColnum+1, iCol_ubound) 			    
-	                do iRowsrch=max( iRowNum-1, iRow_lbound),min( iRownum+1, iRow_ubound) 
-
+	local_search: do iRowsrch=max( iRowNum-1, iRow_lbound),min( iRownum+1, iRow_ubound) 
+                  do iColsrch=max( iColNum-1, iCol_lbound),min( iColnum+1, iCol_ubound) 			    
+	              
 	 			            ! if adjacent cell points to current cell, note it and move on	
 	 			            if ( ( iTargetCol(iColsrch, iRowsrch) == iColnum ) &
 	 			            	.and. ( iTargetRow(iColsrch, iRowsrch) == iRownum ) ) then
@@ -402,6 +422,8 @@ main_loop: do
 
 	 			              	cycle
 
+                      ! if the upslope cell is unmarked as of yet, defer doing anything
+                      ! with the current cell
 	 			              elseif(	.not. lDownhillMarked( iColsrch, iRowsrch ) ) then
 
 	                      lAnyUnmarkedUpslopeCells = lTRUE
@@ -425,7 +447,9 @@ main_loop: do
 
 	              if ( .not. lAnyUnmarkedUpslopeCells ) then
 
+                  iNumberOfChangedCells = iNumberOfChangedCells + 1
 	                iSumOfUpslopeCells(iColnum, iRownum) = iTempSum
+	                
 	                iNumberOfConnections(iColnum, iRownum) = iTempConnections
 	                lDownhillMarked(iColnum, iRownum) = lTRUE
                   iOrderIndex = iOrderIndex + 1
@@ -443,17 +467,45 @@ main_loop: do
 
 		              endif
 
-                endif
+                elseif ( iNumberOfIterationsWithoutChange > 10 ) then
+
+	                iSumOfUpslopeCells(iColnum, iRownum) = iTempSum
+	                
+	                iNumberOfChangedCells = iNumberOfChangedCells + 1
+	                iNumberOfConnections(iColnum, iRownum) = iTempConnections
+	                lDownhillMarked(iColnum, iRownum) = lTRUE
+                  iOrderIndex = iOrderIndex + 1
+                  COLUMN_INDEX(iOrderIndex) = iColnum
+                  ROW_INDEX(iOrderIndex) = iRownum
+                  ORDER_INDEX(iOrderIndex) = routing_D8_get_index( iColnum, iRownum )
+				          iTargetCol(iColNum,iRowNum) = D8_UNDETERMINED     
+				          iTargetRow(iColNum, iRowNum) = D8_UNDETERMINED
+				          
+				          TARGET_INDEX(iOrderIndex) = D8_UNDETERMINED
+
+		            endif
+
+
+!                 print *, iOrderIndex, iColnum, iRownum, iTargetcol(iColnum, iRownum), iTargetRow(iColnum, iRownum), &
+!                    iTempSum, iTempConnections, ORDER_INDEX(iOrderIndex), &
+!                    TARGET_INDEX(iOrderIndex), routing_D8_get_index( iColnum, iRownum ), &
+!                    routing_D8_get_index( iTargetCol(iColnum, iRownum ), iTargetRow(iColnum, iRownum ) )
 
 	      enddo  		
 	  	enddo
 
-      if (iNumberOfChangedCells == 0) exit main_loop
+      if (iNumberOfChangedCells == 0) then
+
+      	iNumberOfIterationsWithoutChange = iNumberOfIterationsWithoutChange + 1
+
+      endif
 
       iNumberRemaining = count( lActive ) - count( lDownhillMarked )
 
       print *, "### determining solution order... ", count( lDownhillMarked ), " cells marked so far " &
         //"out of ", count( lActive ), " active cells."  
+
+      if ( count( lDownhillMarked ) == count( lActive ) )  exit main_loop
 
   	enddo main_loop
 
