@@ -8,7 +8,9 @@ module model_domain
   use simulation_datetime
   use snowfall__original
   use parameters
-  use netcdf4_support, only: NC_FILL_FLOAT
+  use netcdf4_support
+  use strings
+  use string_list
   implicit none
 
   private
@@ -183,12 +185,15 @@ module model_domain
   end interface minmaxmean
 
   type, public :: NETCDF_FILE_COLLECTION_T
-    type (T_NETCDF4_FILE), pointer, public :: ncfile
+    type (NETCDF4_FILE_T), pointer, public :: ncfile
   end type NETCDF_FILE_COLLECTION_T
 
   type (MODEL_DOMAIN_T), public :: MODEL
 
   type (NETCDF_FILE_COLLECTION_T), allocatable, public :: OUTPUT(:)
+  
+  type (NETCDF4_FILE_T), target                      :: NC_ECHO_INPUT 
+  type (NETCDF4_FILE_T), pointer, public             :: pNC_ECHO_INPUT => NC_ECHO_INPUT 
 
   real (kind=c_float), allocatable  :: ROOTING_DEPTH(:,:)
 
@@ -277,7 +282,7 @@ contains
     allocate( this%stream_storage(iCount), stat=iStat(27) )
     allocate( this%index_order(iCount), stat=iStat(28) )
 
-    allocate( OUTPUT(16), stat=iStat(29) )
+    allocate( OUTPUT(15), stat=iStat(29) )
 
     if ( any( iStat /= 0 ) )  call die("Problem allocating memory", __FILE__, __LINE__)
 
@@ -310,10 +315,20 @@ contains
     ! [ LOCALS ]
     integer (kind=c_int) :: iStat
     integer (kind=c_int) :: iIndex
+    type (STRING_LIST_T) :: slVariableNames, slVariableUnits
+    integer (kind=c_int) :: iVarTypes(2)
 
     do iIndex = 1, ubound(OUTPUT, 1)
       allocate ( OUTPUT(iIndex)%ncfile )
     enddo  
+
+    call slVariableNames%append("input available water capacity")
+    call slVariableNames%append("input landuse")
+
+    call slVariableUnits%append("inches per foot")
+    call slVariableUnits%append("categorical landuse code")
+
+    iVarTypes = [ NC_FLOAT, NC_INT ]
 
     call netcdf_open_and_prepare_as_output( NCFILE=OUTPUT(1)%ncfile, sVariableName="gross_precipitation", &
       sVariableUnits="inches_per_day", iNX=this%number_of_columns, iNY=this%number_of_rows, &
@@ -373,13 +388,16 @@ contains
       sVariableUnits="degrees Fahrenheit", iNX=this%number_of_columns, iNY=this%number_of_rows, &
       fX=this%X, fY=this%Y, StartDate=SIM_DT%start, EndDate=SIM_DT%end, dpLat=pCOORD_GRD%rY, dpLon=pCOORD_GRD%rX  )
 
-    call netcdf_open_and_prepare_as_output( NCFILE=OUTPUT(15)%ncfile, sVariableName="available_water_content", &
-      sVariableUnits="inches per foot", iNX=this%number_of_columns, iNY=this%number_of_rows, &
-      fX=this%X, fY=this%Y, StartDate=SIM_DT%start, EndDate=SIM_DT%end, dpLat=pCOORD_GRD%rY, dpLon=pCOORD_GRD%rX  )
-
-    call netcdf_open_and_prepare_as_output( NCFILE=OUTPUT(16)%ncfile, sVariableName="interception_storage", &
+    call netcdf_open_and_prepare_as_output( NCFILE=OUTPUT(15)%ncfile, sVariableName="interception_storage", &
       sVariableUnits="inches", iNX=this%number_of_columns, iNY=this%number_of_rows, &
       fX=this%X, fY=this%Y, StartDate=SIM_DT%start, EndDate=SIM_DT%end, dpLat=pCOORD_GRD%rY, dpLon=pCOORD_GRD%rX  )
+
+    call netcdf_open_and_prepare_2D_multiple_as_output( NCFILE=pNC_ECHO_INPUT, &
+      sFilePrefix="Input_grids", &
+      slVariableNames=slVariableNames, slVariableUnits=slVariableUnits, &
+      iNX=this%number_of_columns, iNY=this%number_of_rows, &
+      fX=this%X, fY=this%Y, dpLat=pCOORD_GRD%rY, dpLon=pCOORD_GRD%rX, iVarTypes=iVarTypes )
+
 
       this%dont_care = -99999.
 
@@ -587,7 +605,7 @@ contains
 
     else
     
-      call die("Error attempting to access AVAILABLE_WATER_CONTENT data.")
+      call die("Error attempting to access AVAILABLE_WATER_CONTENT data.", __FILE__, __LINE__)
 
     endif    
 
@@ -642,6 +660,7 @@ contains
     integer (kind=c_int)                 :: iStat
     integer (kind=c_int)                 :: iIndex
     type (DATA_CATALOG_ENTRY_T), pointer :: pAWC
+    integer (kind=c_int)                 :: iVarID
 
     pAWC => DAT%find("AVAILABLE_WATER_CONTENT")
     
@@ -654,11 +673,25 @@ contains
       else
         call die("INTERNAL PROGRAMMING ERROR: attempted use of NULL pointer", __FILE__, __LINE__)
       endif  
+
     else
+
       call die("Attempted use of NULL pointer. Failed to find AVAILABLE_WATER_CONTENT data element.", &
         __FILE__, __LINE__)
+
     endif
           
+    iVarID = netcdf_get_varid( NCFILE=pNC_ECHO_INPUT, sVariableName="input_available_water_capacity")
+
+    print *, __FILE__, ": ", __LINE__, "   varid = ", iVarID
+
+    call netcdf_put_variable_array(NCFILE=pNC_ECHO_INPUT, &
+                   iVarID=iVarID, &
+                   iStart=[0_c_size_t, 0_c_size_t], &
+                   iCount=[int(this%number_of_rows, kind=c_size_t), int(this%number_of_columns, kind=c_size_t)],              &
+                   iStride=[1_c_ptrdiff_t, 1_c_ptrdiff_t],                         &
+                   rValues=pAWC%pGrdBase%rData)
+
 
   end subroutine initialize_available_water_content_sub
 

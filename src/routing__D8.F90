@@ -42,7 +42,7 @@ module routing__D8
 
   integer (kind=c_int), parameter       :: D8_UNDETERMINED = -999
 
-  type (T_NETCDF4_FILE), pointer       :: pNCFILE ! pointer to OUTPUT NetCDF file
+  type (NETCDF4_FILE_T), pointer       :: pNCFILE ! pointer to OUTPUT NetCDF file
 
 contains
 

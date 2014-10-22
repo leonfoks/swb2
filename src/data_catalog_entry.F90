@@ -72,10 +72,10 @@ module data_catalog_entry
     type (GRID_BOUNDS_T)     :: GRID_BOUNDS_BASE
 
     integer (kind=c_int)     :: iNC_FILE_STATUS = NETCDF_FILE_CLOSED
-    type (T_NETCDF4_FILE)    :: NCFILE
+    type (NETCDF4_FILE_T)    :: NCFILE
 
     integer (kind=c_int)     :: iNC_ARCHIVE_STATUS = NETCDF_FILE_CLOSED
-    type (T_NETCDF4_FILE)    :: NCFILE_ARCHIVE
+    type (NETCDF4_FILE_T)    :: NCFILE_ARCHIVE
     integer (kind=c_size_t)  :: iNCFILE_RECNUM = 0
 
     integer (kind=c_int)     :: iConstantValue

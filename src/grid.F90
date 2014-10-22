@@ -2199,7 +2199,7 @@ subroutine grid_GridToGrid_sgl(pGrdFrom,  pGrdTo )
   real (kind=c_float), dimension(3,3) :: rKernel
 
   rKernel = 1.
-  rKernel(2,2) = 8.
+  rKernel(2,2) = 4.
 
   ! must ensure that there are coordinates associated with the "to" grid...
   ! by default, these are left unpopulated during a "normal" swb run
@@ -2223,12 +2223,12 @@ subroutine grid_GridToGrid_sgl(pGrdFrom,  pGrdTo )
         "Illegal row number supplied: "//trim(asCharacter(iColRow(ROW))), &
         trim(__FILE__), __LINE__)
 
-      pGrdTo%rData(iCol,iRow) = pGrdFrom%rData( iColRow(COLUMN), iColRow(ROW) )
+!      pGrdTo%rData(iCol,iRow) = pGrdFrom%rData( iColRow(COLUMN), iColRow(ROW) )
 
-!         rArrayTo(iCol,iRow) = grid_Convolve_sgl(rValues=rArrayFrom, &
-!           iTargetCol=iColRow(COLUMN), &
-!           iTargetRow=iColRow(ROW), &
-!           rKernel=rKernel)
+         pGrdTo%rData(iCol,iRow) = grid_Convolve_sgl(pGrdFrom=pGrdFrom, &
+           iTargetCol=iColRow(COLUMN), &
+           iTargetRow=iColRow(ROW), &
+           rKernel=rKernel )
 
     enddo
   enddo

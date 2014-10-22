@@ -99,9 +99,11 @@ module netcdf4_support
   integer (c_int), public, parameter :: NC_TIME    = 0
   integer (c_int), public, parameter :: NC_Y       = 1
   integer (c_int), public, parameter :: NC_X       = 2
-  integer (c_int), public, parameter :: NC_Z       = 3
-  integer (c_int), public, parameter :: NC_LAT     = 4
-  integer (c_int), public, parameter :: NC_LON     = 5  
+  integer (c_int), public, parameter :: NC_LAT     = 3
+  integer (c_int), public, parameter :: NC_LON     = 4  
+  integer (c_int), public, parameter :: NC_Z       = 5
+
+  integer (c_int), public, parameter :: NC_MAX_INDEX = NC_Z  
 
   integer (kind=c_int), parameter :: NC_FIRST = 0
   integer (kind=c_int), parameter :: NC_LAST  = 1
@@ -130,35 +132,35 @@ module netcdf4_support
      "float ", &
      "double" ]
 
-  type T_NETCDF_DIMENSION
+  type NETCDF4_DIMENSION_T
     character (len=64) :: sDimensionName
     integer (kind=c_int) :: iNC_DimID = -9999
     integer (kind=c_size_t) :: iNC_DimSize
     logical (kind=c_bool) :: lUnlimited = lFALSE
-  end type T_NETCDF_DIMENSION
+  end type NETCDF4_DIMENSION_T
 
-  type T_NETCDF_ATTRIBUTE
+  type NETCDF4_ATTRIBUTE_T
     character (len=64) :: sAttributeName
-    character (len=256), dimension(:), allocatable :: sAttValue
+    character (len=256), dimension(:), allocatable    :: sAttValue
     integer (kind=c_short), dimension(:), allocatable :: i2AttValue
-    integer (kind=c_int), dimension(:), allocatable :: iAttValue
-    real (kind=c_float), dimension(:), allocatable :: rAttValue
-    real (kind=c_double), dimension(:), allocatable :: dpAttValue
-    integer (kind=c_int) :: iNC_AttType
-    integer (kind=c_size_t) :: iNC_AttSize
-  end type T_NETCDF_ATTRIBUTE
+    integer (kind=c_int), dimension(:), allocatable   :: iAttValue
+    real (kind=c_float), dimension(:), allocatable    :: rAttValue
+    real (kind=c_double), dimension(:), allocatable   :: dpAttValue
+    integer (kind=c_int)     :: iNC_AttType
+    integer (kind=c_size_t)  :: iNC_AttSize
+  end type NETCDF4_ATTRIBUTE_T
 
-  type T_NETCDF_VARIABLE
-    character (len=64) :: sVariableName
+  type NETCDF4_VARIABLE_T
+    character (len=64) :: sVariableName = ""
     integer (kind=c_int) :: iNC_VarID = -9999
     integer (kind=c_int) :: iNC_VarType
     integer (kind=c_int) :: iNumberOfDimensions
     integer (kind=c_int), dimension(0:3) :: iNC_DimID = -9999
     integer (kind=c_int) :: iNumberOfAttributes
-    type (T_NETCDF_ATTRIBUTE), dimension(:), pointer :: pNC_ATT => null()
-  end type T_NETCDF_VARIABLE
+    type (NETCDF4_ATTRIBUTE_T), dimension(:), pointer :: pNC_ATT => null()
+  end type NETCDF4_VARIABLE_T
 
-  type T_NETCDF4_FILE
+  type NETCDF4_FILE_T
     integer (kind=c_int) :: iNCID
     character (len=256) :: sFilename
     integer (kind=c_int) :: iFileFormat
@@ -176,9 +178,9 @@ module netcdf4_support
     integer (kind=c_int) :: iOriginMM
     integer (kind=c_int) :: iOriginSS
     integer (kind=c_int) :: lLeapYearTreatment
-    integer (kind=c_size_t), dimension(0:3) :: iStart
-    integer (kind=c_size_t), dimension(0:3) :: iCount
-    integer (kind=c_size_t), dimension(0:3) :: iStride = 1
+    integer (kind=c_size_t), dimension(0:NC_MAX_INDEX) :: iStart
+    integer (kind=c_size_t), dimension(0:NC_MAX_INDEX) :: iCount
+    integer (kind=c_size_t), dimension(0:NC_MAX_INDEX) :: iStride = 1
     integer (kind=c_size_t), dimension(0:1) :: iColBounds
     integer (kind=c_size_t), dimension(0:1) :: iRowBounds
     integer (kind=c_int) :: iNX
@@ -190,14 +192,14 @@ module netcdf4_support
     logical (kind=c_bool) :: lY_IncreasesWithIndex = lFALSE
 
     real (kind=c_double), dimension(0:1) :: dpFirstAndLastTimeValues
-    character (len=64), dimension(0:3) :: sVarName = ["time","y   ","x   ","z   "]
-    integer (kind=c_int), dimension(0:3) :: iVarID = -9999
-    integer (kind=c_int), dimension(0:3) :: iVarIndex = -9999
-    integer (kind=c_int), dimension(0:3) :: iVarType = -9999
-    character (len=64), dimension(0:3) :: sVarUnits = "NA"
-    integer (kind=c_int), dimension(0:3, 0:3) :: iVar_DimID = -9999
-    real (kind=c_double), dimension(0:3) :: rScaleFactor = 1.0_c_double
-    real (kind=c_double), dimension(0:3) :: rAddOffset = 0.0_c_double
+    character (len=64), dimension(0:NC_MAX_INDEX) :: sVarName = ["time","y   ","x   ", "lat ", "lon ", "z   "]
+    integer (kind=c_int), dimension(0:NC_MAX_INDEX) :: iVarID = -9999
+    integer (kind=c_int), dimension(0:NC_MAX_INDEX) :: iVarIndex = -9999
+    integer (kind=c_int), dimension(0:NC_MAX_INDEX) :: iVarType = -9999
+    character (len=64), dimension(0:NC_MAX_INDEX) :: sVarUnits = "NA"
+    integer (kind=c_int), dimension(0:NC_MAX_INDEX, 0:3) :: iVar_DimID = -9999
+    real (kind=c_double), dimension(0:NC_MAX_INDEX) :: rScaleFactor = 1.0_c_double
+    real (kind=c_double), dimension(0:NC_MAX_INDEX) :: rAddOffset = 0.0_c_double
     integer (kind=c_int), dimension(0:2) :: iRowIter
     integer (kind=c_int), dimension(0:2) :: iColIter
     logical (kind=c_bool) :: lFlipHorizontal = lFALSE
@@ -209,10 +211,10 @@ module netcdf4_support
     real (kind=c_double) :: rGridCellSizeX
     real (kind=c_double) :: rGridCellSizeY
 
-    type (T_NETCDF_DIMENSION), dimension(:), pointer :: pNC_DIM => null()
-    type (T_NETCDF_VARIABLE), dimension(:), pointer :: pNC_VAR => null()
-    type (T_NETCDF_ATTRIBUTE), dimension(:), pointer :: pNC_ATT => null()
-  end type T_NETCDF4_FILE
+    type (NETCDF4_DIMENSION_T), dimension(:), pointer :: pNC_DIM => null()
+    type (NETCDF4_VARIABLE_T), dimension(:), pointer  :: pNC_VAR => null()
+    type (NETCDF4_ATTRIBUTE_T), dimension(:), pointer :: pNC_ATT => null()
+  end type NETCDF4_FILE_T
 
 !
 !                  /\
@@ -228,15 +230,17 @@ module netcdf4_support
 !
 !
 
-  public :: T_NETCDF_DIMENSION, T_NETCDF_VARIABLE, T_NETCDF_ATTRIBUTE
-  public :: T_NETCDF4_FILE
+  public :: NETCDF4_DIMENSION_T, NETCDF4_VARIABLE_T, NETCDF4_ATTRIBUTE_T
+  public :: NETCDF4_FILE_T
 
   public :: netcdf_open_and_prepare_as_input
   public :: netcdf_open_and_prepare_as_output_archive
   public :: netcdf_open_and_prepare_as_output
+  public :: netcdf_open_and_prepare_2D_multiple_as_output
   public :: netcdf_date_within_range
   public :: netcdf_deallocate_data_struct
   public :: netcdf_nullify_data_struct
+  public :: netcdf_get_varid
   public :: netcdf_dump_cdl
   public :: netcdf_open_file
   public :: netcdf_close_file
@@ -252,7 +256,7 @@ contains
 
 function netcdf_date_within_range( NCFILE, iJulianDay)  result( lWithinRange )
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   integer (kind=c_int) :: iJulianDay
   logical (kind=c_bool) :: lWithinRange
 
@@ -280,7 +284,7 @@ end function netcdf_date_within_range
 
 function nf_julian_day_to_index(NCFILE, rJulianDay)  result (iIndex)
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
   real (kind=c_double) :: rJulianDay
   integer (kind=c_int) :: iIndex
 
@@ -291,7 +295,7 @@ end function nf_julian_day_to_index
 
 function nf_index_to_dayvalue(NCFILE, iIndex)   result(rDayValue)
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
   integer (kind=c_int) :: iIndex
   real (kind=c_double) :: rDayValue
 
@@ -305,7 +309,7 @@ end function nf_index_to_dayvalue
 
 function nf_dayvalue_to_julian_day(NCFILE, rDayValue)   result(rJulianDay)
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
   real (kind=c_double) :: rDayValue
   real (kind=c_double) :: rJulianDay
 
@@ -320,7 +324,7 @@ end function nf_dayvalue_to_julian_day
 
 function nf_julian_day_to_index_adj( NCFILE, rJulianDay )  result(iStart)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   real (kind=c_double) :: rJulianDay
   integer (kind=c_size_t) :: iStart
 
@@ -382,11 +386,11 @@ end function nf_julian_day_to_index_adj
 
 function nf_return_VarID( NCFILE, iVarIndex)   result(iVarID)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
    integer (kind=c_int) :: iVarIndex
    integer (kind=c_int) :: iVarID
 
-   type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
+   type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
 
    pNC_VAR => NCFILE%pNC_VAR(iVarIndex)
 
@@ -398,11 +402,11 @@ end function nf_return_VarID
 
 function nf_return_DimID( NCFILE, iDimIndex)   result(iDimID)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
    integer (kind=c_int) :: iDimIndex
    integer (kind=c_int) :: iDimID
 
-   type (T_NETCDF_DIMENSION), pointer :: pNC_DIM
+   type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
 
    pNC_DIM => NCFILE%pNC_DIM(iDimIndex)
 
@@ -414,11 +418,11 @@ end function nf_return_DimID
 
 function nf_return_VarIndex( NCFILE, iVarID)   result(iVarIndex)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
    integer (kind=c_int) :: iVarID
    integer (kind=c_int) :: iVarIndex
 
-   type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
+   type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
    integer (kind=c_int) :: iIndex
    logical (kind=c_bool) :: lFound
 
@@ -447,12 +451,12 @@ end function nf_return_VarIndex
 
 function nf_return_AttValue( NCFILE, iVarIndex, sAttName)   result(sAttValue)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
-   integer (kind=c_int) :: iVarIndex
-   character (len=*) :: sAttName
-   character (len=256) :: sAttValue
+  type (NETCDF4_FILE_T ) :: NCFILE
+   integer (kind=c_int)  :: iVarIndex
+   character (len=*)     :: sAttName
+   character (len=256)   :: sAttValue
 
-   type (T_NETCDF_ATTRIBUTE), dimension(:), pointer :: pNC_ATT
+   type (NETCDF4_ATTRIBUTE_T), dimension(:), pointer :: pNC_ATT
    integer (kind=c_int) :: iIndex, iIndex2
    logical (kind=c_bool) :: lFound
 
@@ -500,11 +504,11 @@ end function nf_return_AttValue
 
 function nf_return_DimIndex( NCFILE, iDimID)   result(iDimIndex)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
    integer (kind=c_int) :: iDimID
    integer (kind=c_int) :: iDimIndex
 
-   type (T_NETCDF_DIMENSION), pointer :: pNC_DIM
+   type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
    integer (kind=c_int) :: iIndex
    logical (kind=c_bool) :: lFound
 
@@ -533,11 +537,11 @@ end function nf_return_DimIndex
 
 function nf_return_DimSize( NCFILE, iDimID)   result(iDimSize)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
    integer (kind=c_int) :: iDimID
    integer (kind=c_size_t) :: iDimSize
 
-   type (T_NETCDF_DIMENSION), pointer :: pNC_DIM
+   type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
    integer (kind=c_int) :: iIndex
    logical (kind=c_bool) :: lFound
 
@@ -570,7 +574,7 @@ subroutine netcdf_open_and_prepare_as_input(NCFILE, sFilename, &
     sVarName_y, sVarName_z, sVarName_time, &
     tGridBounds, iLU)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   character (len=*) :: sFilename
   logical (kind=c_bool), optional :: lFlipHorizontal
   logical (kind=c_bool), optional :: lFlipVertical
@@ -583,8 +587,8 @@ subroutine netcdf_open_and_prepare_as_input(NCFILE, sFilename, &
   integer (kind=c_int), optional :: iLU
 
   ! [ LOCALS ]
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
-  type (T_NETCDF_DIMENSION), pointer :: pNC_DIM
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
+  type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
   logical (kind=c_bool) :: lFileOpen
   integer (kind=c_int), dimension(2) :: iColRow_ll, iColRow_ur, iColRow_lr, iColRow_ul
   integer (kind=c_int) :: iColmin, iColmax, iRowmin, iRowmax
@@ -735,8 +739,8 @@ end subroutine netcdf_open_and_prepare_as_input
 subroutine netcdf_open_and_prepare_as_output_archive(NCFILE, NCFILE_ARCHIVE, &
    iOriginMonth, iOriginDay, iOriginYear, iStartYear, iEndYear)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
-  type (T_NETCDF4_FILE ) :: NCFILE_ARCHIVE
+  type (NETCDF4_FILE_T ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE_ARCHIVE
   integer (kind=c_int) :: iOriginMonth
   integer (kind=c_int) :: iOriginDay
   integer (kind=c_int) :: iOriginYear
@@ -744,8 +748,8 @@ subroutine netcdf_open_and_prepare_as_output_archive(NCFILE, NCFILE_ARCHIVE, &
   integer (kind=c_int) :: iEndYear
 
   ! [ LOCALS ]
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
-  type (T_NETCDF_DIMENSION), pointer :: pNC_DIM
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
+  type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
   integer (kind=c_int) :: iIndex
   integer (kind=c_int) :: iNumCols, iNumRows
   integer (kind=c_int) :: iMinCol, iMaxCol
@@ -827,12 +831,102 @@ subroutine netcdf_open_and_prepare_as_output_archive(NCFILE, NCFILE_ARCHIVE, &
 
 end subroutine netcdf_open_and_prepare_as_output_archive
 
+! allow more than one variable in an output NetCDF file
+
+subroutine netcdf_open_and_prepare_2D_multiple_as_output( NCFILE, sFilePrefix, &
+    slVariableNames, slVariableUnits, &
+   iNX, iNY, fX, fY, dpLat, dpLon, iVarTypes )
+
+  use strings
+  use string_list
+
+  type (NETCDF4_FILE_T ), pointer            :: NCFILE
+  character (len=*), intent(in)              :: sFilePrefix
+  type (STRING_LIST_T), intent(in)           :: slVariableNames
+  type (STRING_LIST_T), intent(in)           :: slVariableUnits
+  integer (kind=c_int), intent(in)           :: iNX
+  integer (kind=c_int), intent(in)           :: iNY
+  real (kind=c_double), intent(in)           :: fX(:)
+  real (kind=c_double), intent(in)           :: fY(:)
+  real (kind=c_double), intent(in)           :: dpLat(:,:)
+  real (kind=c_double), intent(in)           :: dpLon(:,:)
+  integer (kind=c_int), intent(in)           :: iVarTypes(:)
+
+
+!   ! [ LOCALS ]
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
+  type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
+  integer (kind=c_int) :: iIndex
+  character (len=256)                               :: sFilename
+  character (len=256)     :: sVarNames
+
+  sFilename = trim(sFilePrefix)//".nc"
+
+  call LOGS%write("Attempting to open NetCDF file for writing with filename "//dquote(sFilename))
+
+  call nf_create(NCFILE=NCFILE, sFilename=trim(sFilename) )
+
+  !> set dimension values in the NCFILE struct
+  call nf_set_standard_dimensions(NCFILE=NCFILE, iNX=iNX, iNY=iNY)
+  
+  !> @todo implement more flexible method of assigning units
+  NCFILE%sVarUnits(NC_X)    = "meters"  
+  NCFILE%sVarUnits(NC_Y)    = "meters"  
+
+  !> transfer dimension values to NetCDF file
+  call nf_define_dimensions( NCFILE=NCFILE )
+  
+  !> set variable values in the NCFILE struct
+  call nf_set_multiple_2D_variables(NCFILE=NCFILE, slVarNames_z = slVariableNames, &
+     iVarTypes = iVarTypes )
+  
+  !> transfer variable values to NetCDF file
+  call nf_define_variables(NCFILE=NCFILE)
+  
+!  call nf_get_variable_id_and_type( NCFILE=NCFILE )
+  
+  call nf_set_standard_attributes(NCFILE=NCFILE, lLatLon=lTRUE )
+
+  sVarNames = slVariableNames%get(1)
+
+  do iIndex = 2, slVariableNames%count
+    sVarNames = sVarNames + ", " + slVariableNames%get(iIndex)
+  enddo
+
+  print *, __FILE__, ": ", __LINE__, "    variable_names=", dquote(sVarNames) 
+
+  call nf_set_global_attributes(NCFILE=NCFILE, &
+     sDataType=trim(sVarNames) )
+  
+  call nf_put_attributes(NCFILE=NCFILE)
+
+  !> enable a low level of data compression for the variable of interest
+  call nf_define_deflate(NCFILE=NCFILE, &
+     iVarID=NCFILE%iVarID(NC_Z), &
+     iShuffle=NC_SHUFFLE_YES, &
+     iDeflate=NC_DEFLATE_YES, &
+     iDeflate_level=2 )
+
+  call nf_enddef(NCFILE=NCFILE)
+
+  ! we are only supplying a vector of X and Y on the assumption that the base projection
+  ! results in a uniform grid (in other words, we have the same X value for all coluns of a given row)
+  call nf_put_x_and_y(NCFILE=NCFILE, &
+       dpX=fX, &
+       dpY=fY )
+
+  call nf_put_lat_and_lon(NCFILE=NCFILE, &
+       dpLat=dpLat, &
+       dpLon=dpLon )
+
+end subroutine netcdf_open_and_prepare_2D_multiple_as_output
+
 
 
 subroutine netcdf_open_and_prepare_as_output( NCFILE, sVariableName, sVariableUnits, &
    iNX, iNY, fX, fY, StartDate, EndDate, dpLat, dpLon, fValidMin, fValidMax, iVarType )
 
-  type (T_NETCDF4_FILE ), pointer            :: NCFILE
+  type (NETCDF4_FILE_T ), pointer            :: NCFILE
   character (len=*), intent(in)              :: sVariableName
   character (len=*), intent(in)              :: sVariableUnits
   integer (kind=c_int), intent(in)           :: iNX
@@ -849,8 +943,8 @@ subroutine netcdf_open_and_prepare_as_output( NCFILE, sVariableName, sVariableUn
 
 
 !   ! [ LOCALS ]
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
-  type (T_NETCDF_DIMENSION), pointer :: pNC_DIM
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
+  type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
   integer (kind=c_int) :: iIndex
   integer (kind=c_int) :: iVarType_
   character (len=10)                                :: sOriginText
@@ -943,7 +1037,7 @@ end subroutine netcdf_open_and_prepare_as_output
 
 subroutine nf_set_z_variable_name(NCFILE, sVarName_z)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   character (len=*) :: sVarName_z
 
   NCFILE%sVarName(NC_Z) = sVarName_z
@@ -954,7 +1048,7 @@ end subroutine nf_set_z_variable_name
 
 subroutine nf_set_iteration_bounds(NCFILE)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
 
   if (NCFILE%lFlipVertical) then
     NCFILE%iRowIter(NC_FIRST) = NCFILE%iNY
@@ -982,7 +1076,7 @@ end subroutine nf_set_iteration_bounds
 
 subroutine nf_set_start_count_stride(NCFILE)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
 
   ! [ LOCALS ]
   integer (kind=c_int) :: iIndex
@@ -1036,7 +1130,7 @@ end subroutine nf_set_start_count_stride
 
 subroutine nf_return_native_coord_bounds(NCFILE)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
 
   ! [ LOCALS ]
   real (kind=c_double) :: rXmin, rXmax
@@ -1071,11 +1165,11 @@ end subroutine nf_return_native_coord_bounds
 
 subroutine nf_get_time_vals(NCFILE)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
 
   integer (kind=c_int) :: iVarIndex_time
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR_time
-  type (T_NETCDF_DIMENSION), pointer :: pNC_DIM_time
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR_time
+  type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM_time
   integer (kind=c_int) :: iLowerBound, iUpperBound
   integer (kind=c_int) :: iStat
 
@@ -1113,11 +1207,11 @@ end subroutine nf_get_time_vals
 
 subroutine nf_get_x_and_y(NCFILE)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
 
   integer (kind=c_int) :: iVarIndex_x, iVarIndex_y
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR_x, pNC_VAR_y
-  type (T_NETCDF_DIMENSION), pointer :: pNC_DIM_x, pNC_DIM_y
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR_x, pNC_VAR_y
+  type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM_x, pNC_DIM_y
   integer (kind=c_int) :: iLowerBound, iUpperBound
   integer (kind=c_int) :: iStat
 
@@ -1206,7 +1300,7 @@ end subroutine nf_get_x_and_y
 
 subroutine nf_open_file(NCFILE, sFilename, iLU)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   character (len=*) :: sFilename
   integer (kind=c_int), optional :: iLU
 
@@ -1238,7 +1332,7 @@ end subroutine nf_open_file
 
 subroutine netcdf_open_file(NCFILE, sFilename, iLU)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   character (len=*) :: sFilename
   integer (kind=c_int), optional :: iLU
 
@@ -1331,7 +1425,7 @@ end subroutine nf_trap
 
 subroutine netcdf_close_file( NCFILE)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
 
   call LOGS%write("Closing NetCDF file with name: "//dquote(NCFILE%sFilename))
   call nf_trap( nc_close(NCFILE%iNCID), __FILE__, __LINE__ )
@@ -1344,10 +1438,10 @@ end subroutine netcdf_close_file
 
 subroutine netcdf_deallocate_data_struct( NCFILE )
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
 
   ! [ LOCALS ]
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
   integer (kind=c_int) :: iIndex
 
   do iIndex=0, NCFILE%iNumberOfVariables - 1
@@ -1375,7 +1469,7 @@ end subroutine netcdf_deallocate_data_struct
 
 subroutine netcdf_nullify_data_struct( NCFILE )
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
 
   ! [ LOCALS ]
 
@@ -1389,7 +1483,7 @@ end subroutine netcdf_nullify_data_struct
 
 subroutine nf_populate_dimension_struct( NCFILE )
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
   integer (kind=c_int) :: iStat
   integer (kind=c_int) :: iIndex
   character (len=256) :: sDimName
@@ -1428,10 +1522,10 @@ end subroutine nf_populate_dimension_struct
 
 subroutine nf_populate_variable_struct( NCFILE )
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
 
-  type (T_NETCDF_ATTRIBUTE), pointer :: pNC_ATT
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
+  type (NETCDF4_ATTRIBUTE_T), pointer :: pNC_ATT
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
   integer (kind=c_int) :: iStat
   integer (kind=c_int) :: iIndex, iIndex2 , iIndex3
   character (len=256) :: sVarName
@@ -1517,8 +1611,8 @@ end subroutine nf_populate_variable_struct
 
 subroutine nf_populate_attribute_struct( NCFILE, pNC_ATT, iNC_VarID, iAttNum )
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
-  type (T_NETCDF_ATTRIBUTE), pointer :: pNC_ATT
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
+  type (NETCDF4_ATTRIBUTE_T), pointer :: pNC_ATT
   integer (kind=c_int) :: iNC_VarID
   integer (kind=c_int) :: iAttNum
 
@@ -1625,7 +1719,7 @@ end subroutine nf_populate_attribute_struct
 
 function netcdf_update_time_starting_index(NCFILE, iJulianDay)  result(lDateTimeFound)
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
   integer (kind=c_int) :: iJulianDay
   logical (kind=c_bool) :: lDateTimeFound
 
@@ -1648,7 +1742,7 @@ end function netcdf_update_time_starting_index
 
 subroutine netcdf_get_variable_slice(NCFILE, rValues, iValues)
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
   real (kind=c_float), dimension(:,:), optional :: rValues
   integer (kind=c_int), dimension(:,:), optional :: iValues
 
@@ -1678,12 +1772,12 @@ end subroutine netcdf_get_variable_slice
 
 subroutine nf_get_variable_slice_short(NCFILE, rValues)
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
   real (kind=c_float), dimension(:,:) :: rValues
 
   ! [ LOCALS ]
   !! dimension #1 = column (iNX)
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
 
   integer (kind=c_short), dimension(size(rValues,2) * size(rValues,1)) :: iTemp
 
@@ -1750,12 +1844,12 @@ end subroutine nf_get_variable_slice_short
 
 subroutine nf_get_variable_slice_int(NCFILE, rValues)
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
   real (kind=c_float), dimension(:,:) :: rValues
 
   ! [ LOCALS ]
   !! dimension #1 = column (iNX)
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
 
   integer (kind=c_int), dimension(size(rValues,2) * size(rValues,1)) :: iTemp
 
@@ -1823,11 +1917,11 @@ end subroutine nf_get_variable_slice_int
 
 subroutine nf_get_variable_slice_float(NCFILE, rValues)
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
   real (kind=c_float), dimension(:,:) :: rValues
 
   ! [ LOCALS ]
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
   real (kind=c_float), dimension(size(rValues,2) * size(rValues,1)) :: rTemp
   integer (kind=c_int) :: iStat
   integer (kind=c_int) :: iRow, iCol, iIndex
@@ -1893,7 +1987,7 @@ end subroutine nf_get_variable_slice_float
 subroutine nf_get_variable_vector_short(NCFILE, iNC_VarID, iNC_Start, iNC_Count, &
    iNC_Stride, iNC_Vars)
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
   integer (kind=c_int) :: iNC_VarID
   integer (kind=c_size_t) :: iNC_Start
   integer (kind=c_size_t) :: iNC_Count
@@ -1914,7 +2008,7 @@ end subroutine nf_get_variable_vector_short
 subroutine nf_get_variable_array_short(NCFILE, iNC_VarID, iNC_Start, iNC_Count, &
    iNC_Stride, iNC_Vars)
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
   integer (kind=c_int) :: iNC_VarID
   integer (kind=c_size_t), dimension(:) :: iNC_Start
   integer (kind=c_size_t), dimension(:) :: iNC_Count
@@ -1935,7 +2029,7 @@ end subroutine nf_get_variable_array_short
 subroutine nf_get_variable_array_as_vector_short(NCFILE, iNC_VarID, iNC_Start, iNC_Count, &
    iNC_Stride, iNC_Vars)
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
   integer (kind=c_int) :: iNC_VarID
   integer (kind=c_size_t), dimension(:) :: iNC_Start
   integer (kind=c_size_t), dimension(:) :: iNC_Count
@@ -1956,7 +2050,7 @@ end subroutine nf_get_variable_array_as_vector_short
 subroutine nf_get_variable_array_as_vector_int(NCFILE, iNC_VarID, iNC_Start, iNC_Count, &
    iNC_Stride, iNC_Vars)
 
-  type (T_NETCDF4_FILE), intent(inout)     :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout)     :: NCFILE
   integer (kind=c_int)                     :: iNC_VarID
   integer (kind=c_size_t), dimension(:)    :: iNC_Start
   integer (kind=c_size_t), dimension(:)    :: iNC_Count
@@ -1977,7 +2071,7 @@ end subroutine nf_get_variable_array_as_vector_int
 subroutine nf_get_variable_vector_int(NCFILE, iNC_VarID, iNC_Start, iNC_Count, &
    iNC_Stride, iNC_Vars)
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
   integer (kind=c_int) :: iNC_VarID
   integer (kind=c_size_t) :: iNC_Start
   integer (kind=c_size_t) :: iNC_Count
@@ -1998,7 +2092,7 @@ end subroutine nf_get_variable_vector_int
 subroutine nf_get_variable_vector_double(NCFILE, iNC_VarID, iNC_Start, iNC_Count, &
    iNC_Stride, dpNC_Vars)
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
   integer (kind=c_int) :: iNC_VarID
   integer (kind=c_size_t) :: iNC_Start
   integer (kind=c_size_t) :: iNC_Count
@@ -2019,7 +2113,7 @@ end subroutine nf_get_variable_vector_double
 subroutine nf_get_variable_array_double(NCFILE, iNC_VarID, iNC_Start, iNC_Count, &
    iNC_Stride, dpNC_Vars)
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
   integer (kind=c_int) :: iNC_VarID
   integer (kind=c_size_t), dimension(:) :: iNC_Start
   integer (kind=c_size_t), dimension(:) :: iNC_Count
@@ -2040,7 +2134,7 @@ end subroutine nf_get_variable_array_double
 subroutine nf_get_variable_array_as_vector_double(NCFILE, iNC_VarID, iNC_Start, iNC_Count, &
    iNC_Stride, dpNC_Vars)
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
   integer (kind=c_int) :: iNC_VarID
   integer (kind=c_size_t), dimension(:) :: iNC_Start
   integer (kind=c_size_t), dimension(:) :: iNC_Count
@@ -2061,7 +2155,7 @@ end subroutine nf_get_variable_array_as_vector_double
 subroutine nf_get_variable_vector_float(NCFILE, iNC_VarID, iNC_Start, iNC_Count, &
    iNC_Stride, rNC_Vars )
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
   integer (kind=c_int) :: iNC_VarID
   integer (kind=c_size_t) :: iNC_Start
   integer (kind=c_size_t) :: iNC_Count
@@ -2082,7 +2176,7 @@ end subroutine nf_get_variable_vector_float
 subroutine nf_get_variable_array_float(NCFILE, iNC_VarID, iNC_Start, iNC_Count, &
    iNC_Stride, rNC_Vars )
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
   integer (kind=c_int) :: iNC_VarID
   integer (kind=c_size_t), dimension(:) :: iNC_Start
   integer (kind=c_size_t), dimension(:) :: iNC_Count
@@ -2103,7 +2197,7 @@ end subroutine nf_get_variable_array_float
 subroutine nf_get_variable_array_as_vector_float(NCFILE, iNC_VarID, iNC_Start, iNC_Count, &
    iNC_Stride, rNC_Vars )
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
   integer (kind=c_int) :: iNC_VarID
   integer (kind=c_size_t), dimension(:) :: iNC_Start
   integer (kind=c_size_t), dimension(:) :: iNC_Count
@@ -2123,10 +2217,10 @@ end subroutine nf_get_variable_array_as_vector_float
 
 subroutine netcdf_dump_cdl(NCFILE, iLU)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
-  type (T_NETCDF_ATTRIBUTE), pointer :: pNC_ATT
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
-  type (T_NETCDF_DIMENSION), pointer :: pNC_DIM
+  type (NETCDF4_FILE_T ) :: NCFILE
+  type (NETCDF4_ATTRIBUTE_T), pointer :: pNC_ATT
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
+  type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
   integer :: iLU
   character (len=256) :: sBuf, sBuf2
   character (len=256) :: sDimName
@@ -2235,13 +2329,13 @@ end subroutine netcdf_dump_cdl
 
 function nf_get_first_and_last(NCFILE, iVarIndex)  result(dpValues)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   integer (kind=c_int) :: iVarIndex
   real (kind=c_double), dimension(0:1) :: dpValues
 
   ! [ LOCALS ]
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
-  type (T_NETCDF_DIMENSION), pointer :: pNC_DIM
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
+  type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
   integer (kind=c_int) :: iDimSize
   integer (kind=c_int) :: iDimIndex
   integer (kind=c_size_t) :: iStride
@@ -2327,7 +2421,7 @@ end function nf_get_first_and_last
 
 subroutine nf_calculate_time_range(NCFILE)
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
 
   NCFILE%iOriginJD = julian_day(NCFILE%iOriginYear, &
     NCFILE%iOriginMonth, NCFILE%iOriginDay)
@@ -2341,10 +2435,10 @@ end subroutine nf_calculate_time_range
 
 subroutine nf_get_time_units(NCFILE)
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
 
   ! [ LOCALS ]
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
   character (len=256) :: sDateTime
   character (len=256) :: sItem
   integer (kind=c_int) :: iIndex
@@ -2402,10 +2496,10 @@ end subroutine nf_get_time_units
 
 subroutine nf_get_xyz_units(NCFILE)
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
 
   ! [ LOCALS ]
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
   integer (kind=c_int) :: iIndex, iIndex2
   logical (kind=c_bool) :: lFound
   integer (kind=c_int) :: iStat
@@ -2441,10 +2535,10 @@ end subroutine nf_get_xyz_units
 
 subroutine nf_get_scale_and_offset(NCFILE)
 
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
 
   ! [ LOCALS ]
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
   integer (kind=c_int) :: iIndex
   logical (kind=c_bool) :: lFound
   integer (kind=c_int) :: iStat
@@ -2490,11 +2584,11 @@ end subroutine nf_get_scale_and_offset
 !----------------------------------------------------------------------
 
 subroutine nf_get_variable_id_and_type( NCFILE )
-  type (T_NETCDF4_FILE), intent(inout) :: NCFILE
+  type (NETCDF4_FILE_T), intent(inout) :: NCFILE
 
    ! [ LOCALS ]
    integer (kind=c_int) :: iIndex
-   type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
+   type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
 
    NCFILE%iVarID = -9999
 
@@ -2586,7 +2680,7 @@ end function nf_return_index_double
 
 function nf_coord_to_col_row(NCFILE, rX, rY)  result(iColRow)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   real (kind=c_double) :: rX
   real (kind=c_double) :: rY
   integer (kind=c_size_t), dimension(2) :: iColRow
@@ -2625,14 +2719,14 @@ end function nf_coord_to_col_row
 
 !----------------------------------------------------------------------
 
-function nf_get_varid(NCFILE, sVariableName)  result(iNC_VarID)
+function netcdf_get_varid(NCFILE, sVariableName)  result(iNC_VarID)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   character (len=*) :: sVariableName
   integer (kind=c_int) :: iNC_VarID
 
   integer (kind=c_int) :: iIndex
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
 
   iNC_VarID = -9999
 
@@ -2649,13 +2743,13 @@ function nf_get_varid(NCFILE, sVariableName)  result(iNC_VarID)
 
   enddo
 
-end function nf_get_varid
+end function netcdf_get_varid
 
 !----------------------------------------------------------------------
 
 subroutine nf_create(NCFILE, sFilename, iLU)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   character (len=*) :: sFilename
   integer (kind=c_int), optional :: iLU
 
@@ -2681,7 +2775,7 @@ end subroutine nf_create
 
 subroutine nf_define_deflate(NCFILE, iVarID, iShuffle, iDeflate, iDeflate_level)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   integer (kind=c_int) :: iVarID
   integer (kind=c_int) :: iShuffle
   integer (kind=c_int) :: iDeflate
@@ -2700,7 +2794,7 @@ end subroutine nf_define_deflate
 
 subroutine nf_enddef(NCFILE)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
 
   call nf_trap(nc_enddef(ncid=NCFILE%iNCID), &
        __FILE__, __LINE__)
@@ -2712,7 +2806,7 @@ end subroutine nf_enddef
 function nf_define_dimension(NCFILE, sDimensionName, iDimensionSize) &
       result(iDimID)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   character (len=*) :: sDimensionName
   integer (kind=c_int) :: iDimensionSize
   integer (kind=c_int) :: iDimID
@@ -2733,13 +2827,13 @@ end function nf_define_dimension
 
 subroutine nf_define_dimensions( NCFILE )
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
 
   ! [ LOCALS ]
   integer (kind=c_int) :: iStat
   integer (kind=c_int) :: iIndex
   character (len=256) :: sDimName
-  type (T_NETCDF_DIMENSION), pointer :: pNC_DIM
+  type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
 
   do iIndex = 0, NCFILE%iNumberOfDimensions-1
 
@@ -2759,7 +2853,7 @@ end subroutine nf_define_dimensions
 
 subroutine nf_set_standard_dimensions(NCFILE, iNX, iNY)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   integer (kind=c_int) :: iNX
   integer (kind=c_int) :: iNY
 
@@ -2794,9 +2888,84 @@ end subroutine nf_set_standard_dimensions
 
 !----------------------------------------------------------------------
 
+subroutine nf_set_multiple_2D_variables(NCFILE, slVarNames_z, iVarTypes )
+
+  use strings
+  use string_list
+
+  type (NETCDF4_FILE_T )            :: NCFILE
+  type (STRING_LIST_T)              :: slVarNames_z
+  integer (kind=c_int)              :: iVarTypes(:)
+
+  ! [ LOCALS ]
+  integer (kind=c_int)  :: iStat
+  integer (kind=c_int)  :: iCount
+  integer (kind=c_int)  :: iIndex
+
+  iCount = slVarNames_z%count
+
+  NCFILE%iNumberOfVariables = 4 + iCount
+
+  if (associated(NCFILE%pNC_VAR) ) deallocate(NCFILE%pNC_VAR, stat=iStat)
+  call assert(iStat == 0, "Could not deallocate memory for NC_VAR member in NC_FILE defined type", &
+    trim(__FILE__), __LINE__)
+
+  allocate(NCFILE%pNC_VAR( 0 : NCFILE%iNumberOfVariables-1), stat=iStat )
+  call assert(iStat == 0, "Could not allocate memory for NC_VAR member in NC_FILE defined type", &
+    trim(__FILE__), __LINE__)
+
+  NCFILE%pNC_VAR(NC_Y)%sVariableName = "y"
+  NCFILE%pNC_VAR(NC_Y)%iNC_VarType = NC_DOUBLE
+  NCFILE%pNC_VAR(NC_Y)%iNumberOfDimensions = 1
+  NCFILE%pNC_VAR(NC_Y)%iNC_DimID = NCFILE%pNC_DIM(NC_Y)%iNC_DimID
+
+  NCFILE%pNC_VAR(NC_X)%sVariableName = "x"
+  NCFILE%pNC_VAR(NC_X)%iNC_VarType = NC_DOUBLE
+  NCFILE%pNC_VAR(NC_X)%iNumberOfDimensions = 1
+  NCFILE%pNC_VAR(NC_X)%iNC_DimID = NCFILE%pNC_DIM(NC_X)%iNC_DimID  
+
+  NCFILE%pNC_VAR(NC_LAT)%sVariableName = "lat"
+  NCFILE%pNC_VAR(NC_LAT)%iNC_VarType = NC_FLOAT
+  NCFILE%pNC_VAR(NC_LAT)%iNumberOfDimensions = 2
+  NCFILE%pNC_VAR(NC_LAT)%iNC_DimID = [NCFILE%pNC_DIM(NC_X)%iNC_DimID, &
+                                      NCFILE%pNC_DIM(NC_Y)%iNC_DimID,0,0]
+
+  NCFILE%pNC_VAR(NC_LON)%sVariableName = "lon"
+  NCFILE%pNC_VAR(NC_LON)%iNC_VarType = NC_FLOAT
+  NCFILE%pNC_VAR(NC_LON)%iNumberOfDimensions = 2
+  NCFILE%pNC_VAR(NC_LON)%iNC_DimID = [NCFILE%pNC_DIM(NC_X)%iNC_DimID, &
+                                      NCFILE%pNC_DIM(NC_Y)%iNC_DimID,0,0]
+
+  NCFILE%pNC_VAR(NC_Z)%sVariableName = trim( slVarNames_z%get(1) )
+  NCFILE%pNC_VAR(NC_Z)%iNC_VarType = iVarTypes(1)
+  NCFILE%pNC_VAR(NC_Z)%iNumberOfDimensions = 2
+  NCFILE%pNC_VAR(NC_Z)%iNC_DimID = [NCFILE%pNC_DIM(NC_Y)%iNC_DimID, &
+                                 NCFILE%pNC_DIM(NC_X)%iNC_DimID,0,0]
+  
+  print *, "$$$$ ", __FILE__, ": ", __LINE__, "  varname=",trim( slVarNames_z%get(1) )
+
+  if ( iCount > 1 ) then
+
+    do iIndex = 2, iCount
+
+
+  print *, "$$$$ ", __FILE__, ": ", __LINE__, "  varname=",trim( slVarNames_z%get(iIndex) )
+
+      NCFILE%pNC_VAR(NC_LON + iIndex - 1)%sVariableName = trim( slVarNames_z%get(iIndex) )
+      NCFILE%pNC_VAR(NC_LON + iIndex - 1)%iNC_VarType = iVarTypes(iIndex)
+      NCFILE%pNC_VAR(NC_LON + iIndex - 1)%iNumberOfDimensions = 2
+      NCFILE%pNC_VAR(NC_LON + iIndex - 1)%iNC_DimID = [NCFILE%pNC_DIM(NC_Y)%iNC_DimID, &
+                                 NCFILE%pNC_DIM(NC_X)%iNC_DimID,0,0]
+    enddo
+
+  endif
+
+end subroutine nf_set_multiple_2D_variables
+
+
 subroutine nf_set_standard_variables(NCFILE, sVarName_z, lLatLon, iVarType)
 
-  type (T_NETCDF4_FILE )            :: NCFILE
+  type (NETCDF4_FILE_T )            :: NCFILE
   character (len=*)                 :: sVarName_z
   logical (kind=c_bool), optional   :: lLatLon
   integer (kind=c_int), optional    :: iVarType
@@ -2879,7 +3048,7 @@ end subroutine nf_set_standard_variables
 
 subroutine nf_set_global_attributes(NCFILE, sDataType, sSourceFile )
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   character (len=*), intent(in) :: sDataType
   character (len=*), intent(in), optional :: sSourceFile
 
@@ -2939,8 +3108,8 @@ end subroutine nf_set_global_attributes
 
 subroutine nf_set_standard_attributes(NCFILE, sOriginText, lLatLon, fValidMin, fValidMax )
 
-  type (T_NETCDF4_FILE )             :: NCFILE
-  character (len=*)                  :: sOriginText
+  type (NETCDF4_FILE_T )             :: NCFILE
+  character (len=*), optional        :: sOriginText
   logical (kind=c_bool), optional    :: lLatLon
   real (kind=c_float), optional      :: fValidMin
   real (kind=c_float), optional      :: fValidMax
@@ -2948,7 +3117,7 @@ subroutine nf_set_standard_attributes(NCFILE, sOriginText, lLatLon, fValidMin, f
   ! [ LOCALS ]
   integer (kind=c_int)                             :: iStat
   integer (kind=c_int)                             :: iNumAttributes
-  type (T_NETCDF_ATTRIBUTE), dimension(:), pointer :: pNC_ATT
+  type (NETCDF4_ATTRIBUTE_T), dimension(:), pointer :: pNC_ATT
   logical (kind=c_bool)                            :: lLatLon_
 
   if (present( lLatLon ) ) then
@@ -2957,37 +3126,41 @@ subroutine nf_set_standard_attributes(NCFILE, sOriginText, lLatLon, fValidMin, f
     lLatLon_ = lFALSE
   endif  
 
-  iNumAttributes = 3
-  allocate( NCFILE%pNC_VAR(NC_TIME)%pNC_ATT(0:iNumAttributes-1), stat=iStat)
-  call assert(iStat == 0, "Could not allocate memory for NC_ATT member in NC_VAR struct of NC_FILE", &
-    trim(__FILE__), __LINE__)
-  NCFILE%pNC_VAR(NC_TIME)%iNumberOfAttributes = iNumAttributes
+  if (present( sOriginText ) ) then
 
-  pNC_ATT => NCFILE%pNC_VAR(NC_TIME)%pNC_ATT
+    iNumAttributes = 3
+    allocate( NCFILE%pNC_VAR(NC_TIME)%pNC_ATT(0:iNumAttributes-1), stat=iStat)
+    call assert(iStat == 0, "Could not allocate memory for NC_ATT member in NC_VAR struct of NC_FILE", &
+      trim(__FILE__), __LINE__)
+    NCFILE%pNC_VAR(NC_TIME)%iNumberOfAttributes = iNumAttributes
 
-  !! define attributes associated with TIME variable
-  block
+    pNC_ATT => NCFILE%pNC_VAR(NC_TIME)%pNC_ATT
 
-    pNC_ATT(0)%sAttributeName = "units"
-    allocate(pNC_ATT(0)%sAttValue(0:0))
-    pNC_ATT(0)%sAttValue(0) = "days since "//trim(sOriginText)//" 00:00:00"
-    pNC_ATT(0)%iNC_AttType = NC_CHAR
-    pNC_ATT(0)%iNC_AttSize = 1_c_size_t
+    !! define attributes associated with TIME variable
+    block
 
-    pNC_ATT(1)%sAttributeName = "calendar"
-    allocate(pNC_ATT(1)%sAttValue(0:0))
-    pNC_ATT(1)%sAttValue(0) = "standard"
-    pNC_ATT(1)%iNC_AttType = NC_CHAR
-    pNC_ATT(1)%iNC_AttSize = 1_c_size_t
+      pNC_ATT(0)%sAttributeName = "units"
+      allocate(pNC_ATT(0)%sAttValue(0:0))
+      pNC_ATT(0)%sAttValue(0) = "days since "//trim(sOriginText)//" 00:00:00"
+      pNC_ATT(0)%iNC_AttType = NC_CHAR
+      pNC_ATT(0)%iNC_AttSize = 1_c_size_t
 
-    pNC_ATT(2)%sAttributeName = "long_name"
-    allocate(pNC_ATT(2)%sAttValue(0:0))
-    pNC_ATT(2)%sAttValue(0) = "time"
-    pNC_ATT(2)%iNC_AttType = NC_CHAR
-    pNC_ATT(2)%iNC_AttSize = 1_c_size_t
+      pNC_ATT(1)%sAttributeName = "calendar"
+      allocate(pNC_ATT(1)%sAttValue(0:0))
+      pNC_ATT(1)%sAttValue(0) = "standard"
+      pNC_ATT(1)%iNC_AttType = NC_CHAR
+      pNC_ATT(1)%iNC_AttSize = 1_c_size_t
+
+      pNC_ATT(2)%sAttributeName = "long_name"
+      allocate(pNC_ATT(2)%sAttValue(0:0))
+      pNC_ATT(2)%sAttValue(0) = "time"
+      pNC_ATT(2)%iNC_AttType = NC_CHAR
+      pNC_ATT(2)%iNC_AttSize = 1_c_size_t
 
 
-  end block
+    end block
+
+  endif
 
   if (present( fValidMin ) .and. present( fValidMax) ) then
 
@@ -3177,7 +3350,7 @@ end subroutine nf_set_standard_attributes
 
 subroutine nf_put_x_and_y(NCFILE, dpX, dpY)
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
   real (kind=c_double), dimension(:) :: dpX
   real (kind=c_double), dimension(:) :: dpY
 
@@ -3209,7 +3382,7 @@ end subroutine nf_put_x_and_y
 
 subroutine nf_put_lat_and_lon(NCFILE, dpLat, dpLon)
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
   real (kind=c_double), dimension(:,:) :: dpLat
   real (kind=c_double), dimension(:,:) :: dpLon
 
@@ -3241,7 +3414,7 @@ end subroutine nf_put_lat_and_lon
 function nf_define_variable(NCFILE, sVariableName, iVariableType, &
    iNumberOfDimensions, iDimIDs)    result(iVarID)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   character (len=*) :: sVariableName
   integer (kind=c_int) :: iVariableType
   integer (kind=c_int) :: iNumberOfDimensions
@@ -3264,13 +3437,13 @@ end function nf_define_variable
 
 subroutine nf_define_variables( NCFILE )
 
-  type (T_NETCDF4_FILE) :: NCFILE
+  type (NETCDF4_FILE_T) :: NCFILE
 
   ! [ LOCALS ]
   integer (kind=c_int) :: iStat
   integer (kind=c_int) :: iIndex
   character (len=256) :: sDimName
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
 
   !! note: the default number of variables for a simple archive file is 4:
   !! 0) time, 1) Y, 2) X, 3) variable of interest
@@ -3279,13 +3452,19 @@ subroutine nf_define_variables( NCFILE )
 
     pNC_VAR => NCFILE%pNC_VAR(iIndex)
 
-    call nf_trap( nc_def_var(ncid=NCFILE%iNCID,&
-                             name=trim(fortran_to_c_string(pNC_VAR%sVariableName)), &
-                             xtype=pNC_VAR%iNC_VarType, &
-                             ndims=pNC_VAR%iNumberOfDimensions, &
-                             dimidsp=pNC_VAR%iNC_DimID, &
-                             varidp=pNC_VAR%iNC_VarID), &
-                             __FILE__, __LINE__)
+    print *, __FILE__, ": ", __LINE__, "     varname=", dquote(pNC_VAR%sVariableName)
+
+    if ( len_trim( pNC_VAR%sVariableName ) > 0 ) then
+
+      call nf_trap( nc_def_var(ncid=NCFILE%iNCID,&
+                               name=trim(fortran_to_c_string(pNC_VAR%sVariableName)), &
+                               xtype=pNC_VAR%iNC_VarType, &
+                               ndims=pNC_VAR%iNumberOfDimensions, &
+                               dimidsp=pNC_VAR%iNC_DimID, &
+                               varidp=pNC_VAR%iNC_VarID), &
+                               __FILE__, __LINE__)
+
+    endif
 
   enddo
 
@@ -3296,7 +3475,7 @@ end subroutine nf_define_variables
 subroutine nf_put_attribute(NCFILE, iVarID, sAttributeName, &
   sAttributeValue, iAttributeValue, rAttributeValue, dpAttributeValue)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   integer (kind=c_int) :: iVarID
   character (len=*) :: sAttributeName
   character (len=*), dimension(:), optional :: sAttributeValue
@@ -3364,12 +3543,12 @@ end subroutine nf_put_attribute
 
 subroutine nf_put_attributes(NCFILE)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
 
   ! [ LOCALS ]
   integer (kind=c_size_t) :: iNumberOfAttributes
-  type (T_NETCDF_VARIABLE), pointer :: pNC_VAR
-  type (T_NETCDF_ATTRIBUTE), pointer :: pNC_ATT
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
+  type (NETCDF4_ATTRIBUTE_T), pointer :: pNC_ATT
   integer (kind=c_int) :: iIndex
   integer (kind=c_int) :: iIndex2
   integer (kind=c_int) :: iStat
@@ -3506,7 +3685,7 @@ end subroutine nf_put_attributes
 subroutine netcdf_put_variable_array(NCFILE, iVarID, iStart, iCount, iStride, &
    iValues, i2Values, rValues, dpValues)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   integer (kind=c_int) :: iVarID
   integer (kind=c_size_t), dimension(:) :: iStart
   integer (kind=c_size_t), dimension(:) :: iCount
@@ -3563,7 +3742,7 @@ end subroutine netcdf_put_variable_array
 subroutine netcdf_put_packed_variable_array(NCFILE, iVarID, iStart, iCount, iStride, &
    lMask, iValues, iField, i2Values, i2Field, rValues, rField, dpValues, dpField)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   integer (kind=c_int) :: iVarID
   integer (kind=c_size_t), dimension(:)            :: iStart
   integer (kind=c_size_t), dimension(:)            :: iCount
@@ -3626,7 +3805,7 @@ end subroutine netcdf_put_packed_variable_array
 subroutine netcdf_put_variable_vector(NCFILE, iVarID, iStart, iCount, iStride, &
    iValues, i2Values, rValues, dpValues)
 
-  type (T_NETCDF4_FILE ) :: NCFILE
+  type (NETCDF4_FILE_T ) :: NCFILE
   integer (kind=c_int) :: iVarID
   integer (kind=c_size_t), dimension(:) :: iStart
   integer (kind=c_size_t), dimension(:) :: iCount

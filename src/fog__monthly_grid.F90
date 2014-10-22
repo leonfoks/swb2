@@ -26,7 +26,7 @@ module fog__monthly_grid
   public :: fog_monthly_grid_initialize, fog_monthly_grid_calculate, pFOG_RATIO
 
   type (DATA_CATALOG_ENTRY_T), pointer :: pFOG_RATIO        ! data catalog object => FOG_RATIO grid
-  type (T_NETCDF4_FILE), pointer       :: pNCFILE ! pointer to OUTPUT NetCDF file
+  type (NETCDF4_FILE_T), pointer       :: pNCFILE ! pointer to OUTPUT NetCDF file
 
 contains
 

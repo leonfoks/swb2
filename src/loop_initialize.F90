@@ -172,8 +172,10 @@ contains
     ! call each of the initialization routines associated with the chosen methods
     call MODEL%initialize_methods()
 
-    ! open and prepare NetCDF files for output
-    call MODEL%initialize_netcdf_output()
+    ! bring in soils (HSG, AWC), landuse, and flow direction data from native grids
+    ! and pack that data into vectors for active grid cells only
+    call initialize_soils_landuse_awc_flowdir_values()
+
 
   end subroutine initialize_options
 
@@ -494,6 +496,9 @@ contains
       call MODEL%initialize_arrays()
 
       call MODEL%initialize_latitude()
+
+      ! open and prepare NetCDF files for output
+      call MODEL%initialize_netcdf_output()
 
       call MODEL%initialize_soil_groups()
 
