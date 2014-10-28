@@ -93,15 +93,6 @@ module netcdf4_support
   integer(kind=c_int),  parameter :: NC_UNLIMITED = 0
   integer(kind=c_int),  parameter :: NC_GLOBAL    = -1
 
-!   integer (c_int), public, parameter :: NC_TIME    = 0
-!   integer (c_int), public, parameter :: NC_Y       = 1
-!   integer (c_int), public, parameter :: NC_X       = 2
-!   integer (c_int), public, parameter :: NC_LAT     = 3
-!   integer (c_int), public, parameter :: NC_LON     = 4  
-!   integer (c_int), public, parameter :: NC_Z       = 5
-
-!   integer (c_int), public, parameter :: NC_MAX_INDEX = NC_Z  
-
   integer (kind=c_int), parameter :: NC_FIRST = 0
   integer (kind=c_int), parameter :: NC_LAST  = 1
   integer (kind=c_int), parameter :: NC_BY    = 2
@@ -131,8 +122,8 @@ module netcdf4_support
 
   type NETCDF4_DIMENSION_T
     character (len=64)           :: sDimensionName
-    integer (kind=c_int)         :: iNC_DimID       = -9999
-    integer (kind=c_size_t)      :: iNC_DimSize
+    integer (kind=c_int)         :: iDimID          = NC_FILL_INT
+    integer (kind=c_size_t)      :: iDimSize
     logical (kind=c_bool)        :: lUnlimited      = lFALSE
   end type NETCDF4_DIMENSION_T
 
@@ -149,11 +140,11 @@ module netcdf4_support
 
   type NETCDF4_VARIABLE_T
     character (len=64)                       :: sVariableName       = ""
-    integer (kind=c_int)                     :: iNC_VarID           = -9999
-    integer (kind=c_int)                     :: iNC_VarType
-    character (len=64)                       :: sVarUnits           = "NA"
+    integer (kind=c_int)                     :: iVariableID         = NC_FILL_INT
+    integer (kind=c_int)                     :: iVariableType
+    character (len=64)                       :: sVariableUnits      = "NA"
     integer (kind=c_int)                     :: iNumberOfDimensions
-    integer (kind=c_int)                     :: iNC_DimID(0:3)      = -9999
+    integer (kind=c_int)                     :: iNC_DimID(0:3)      = NC_FILL_INT
     real (kind=c_double)                     :: rScaleFactor        = 1.0_c_double
     real (kind=c_double)                     :: rAddOffset          = 0.0_c_double
     integer (kind=c_size_t)                  :: iStart
@@ -165,7 +156,7 @@ module netcdf4_support
 
   type NETCDF4_FILE_T
     integer (kind=c_int) :: iNCID
-    character (len=256) :: sFilename
+    character (len=256)  :: sFilename
     integer (kind=c_int) :: iFileFormat
     integer (kind=c_int) :: iNC3_UnlimitedDimensionNumber
     integer (kind=c_int) :: iOriginJD
@@ -178,9 +169,6 @@ module netcdf4_support
     integer (kind=c_int) :: iOriginMM
     integer (kind=c_int) :: iOriginSS
     integer (kind=c_int) :: lLeapYearTreatment
-!     integer (kind=c_size_t), dimension(0:NC_MAX_INDEX) :: iStart
-!     integer (kind=c_size_t), dimension(0:NC_MAX_INDEX) :: iCount
-!     integer (kind=c_size_t), dimension(0:NC_MAX_INDEX) :: iStride = 1
     integer (kind=c_size_t), dimension(0:1) :: iColBounds
     integer (kind=c_size_t), dimension(0:1) :: iRowBounds
     integer (kind=c_int) :: iNX
@@ -193,53 +181,40 @@ module netcdf4_support
 
     real (kind=c_double), dimension(0:1) :: dpFirstAndLastTimeValues
 
-!
-!     THE STUFF BELOW SHOULD REALLY ALWAYS HAVE BEEN KEPT WITHIN THE
-!     VARIABLE DATA STRUCTURE
-!    
-!     character (len=64), dimension(0:NC_MAX_INDEX) :: sVarName = ["time","y   ","x   ", "lat ", "lon ", "z   "]
-!     integer (kind=c_int), dimension(0:NC_MAX_INDEX) :: iVarID = -9999
-!     integer (kind=c_int), dimension(0:NC_MAX_INDEX) :: iVarIndex = -9999
-!     integer (kind=c_int), dimension(0:NC_MAX_INDEX) :: iVarType = -9999
-!     character (len=64), dimension(0:NC_MAX_INDEX) :: sVarUnits = "NA"
-!     integer (kind=c_int), dimension(0:NC_MAX_INDEX, 0:3) :: iVar_DimID = -9999
-!     real (kind=c_double), dimension(0:NC_MAX_INDEX) :: rScaleFactor = 1.0_c_double
-!     real (kind=c_double), dimension(0:NC_MAX_INDEX) :: rAddOffset = 0.0_c_double
     integer (kind=c_int), dimension(0:2) :: iRowIter
     integer (kind=c_int), dimension(0:2) :: iColIter
-    logical (kind=c_bool) :: lFlipHorizontal = lFALSE
-    logical (kind=c_bool) :: lFlipVertical = lFALSE
+    logical (kind=c_bool)                :: lFlipHorizontal = lFALSE
+    logical (kind=c_bool)                :: lFlipVertical = lFALSE
 
-    real (kind=c_double), allocatable :: rX_Coords(:)
-    real (kind=c_double), allocatable :: rY_Coords(:)
-    real (kind=c_double), allocatable :: rDateTimeValues(:)
-    real (kind=c_double)              :: rGridCellSizeX
-    real (kind=c_double)              :: rGridCellSizeY
+    real (kind=c_double), allocatable    :: rX_Coords(:)
+    real (kind=c_double), allocatable    :: rY_Coords(:)
+    real (kind=c_double), allocatable    :: rDateTimeValues(:)
+    real (kind=c_double)                 :: rGridCellSizeX
+    real (kind=c_double)                 :: rGridCellSizeY
 
-    type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM(:)      => null()
-    type (NETCDF4_VARIABLE_T), pointer  :: pNC_VAR(:)      => null()
-    type (NETCDF4_ATTRIBUTE_T), pointer :: pNC_ATT(:)      => null()
+    type (NETCDF4_DIMENSION_T), pointer  :: pNC_DIM(:)      => null()
+    type (NETCDF4_VARIABLE_T), pointer   :: pNC_VAR(:)      => null()
+    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT(:)      => null()
 
-    type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM_X       => null()
-    type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM_Y       => null()
-    type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM_Z       => null()      
-    type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM_TIME    => null()        
+    type (NETCDF4_DIMENSION_T), pointer  :: pNC_DIM_X       => null()
+    type (NETCDF4_DIMENSION_T), pointer  :: pNC_DIM_Y       => null()
+    type (NETCDF4_DIMENSION_T), pointer  :: pNC_DIM_Z       => null()      
+    type (NETCDF4_DIMENSION_T), pointer  :: pNC_DIM_TIME    => null()        
 
-    type (NETCDF4_VARIABLE_T), pointer  :: pNC_VAR_X       => null()
-    type (NETCDF4_VARIABLE_T), pointer  :: pNC_VAR_Y       => null()
-    type (NETCDF4_VARIABLE_T), pointer  :: pNC_VAR_LAT     => null()
-    type (NETCDF4_VARIABLE_T), pointer  :: pNC_VAR_LON     => null()      
-    type (NETCDF4_VARIABLE_T), pointer  :: pNC_VAR_TIME    => null()
+    type (NETCDF4_VARIABLE_T), pointer   :: pNC_VAR_X       => null()
+    type (NETCDF4_VARIABLE_T), pointer   :: pNC_VAR_Y       => null()
+    type (NETCDF4_VARIABLE_T), pointer   :: pNC_VAR_LAT     => null()
+    type (NETCDF4_VARIABLE_T), pointer   :: pNC_VAR_LON     => null()      
+    type (NETCDF4_VARIABLE_T), pointer   :: pNC_VAR_TIME    => null()
 
-    type (NETCDF4_ATTRIBUTE_T), pointer :: pNC_ATT_X       => null()
-    type (NETCDF4_ATTRIBUTE_T), pointer :: pNC_ATT_Y       => null()
-    type (NETCDF4_ATTRIBUTE_T), pointer :: pNC_ATT_LAT     => null()
-    type (NETCDF4_ATTRIBUTE_T), pointer :: pNC_ATT_LON     => null()      
-    type (NETCDF4_ATTRIBUTE_T), pointer :: pNC_ATT_TIME    => null()
+    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_X       => null()
+    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_Y       => null()
+    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_LAT     => null()
+    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_LON     => null()      
+    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_TIME    => null()
 
-    type (NETCDF4_ATTRIBUTE_T), pointer :: pNC_ATT_VALUES(:)    => null()
-    type (NETCDF4_VARIABLE_T), pointer  :: pNC_VAR_VALUES(:)    => null()
-    type (NETCDF4_VARIABLE_T), pointer  :: pNC_VAR_VALUE        => null()
+    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_VALUES(:)    => null()
+    type (NETCDF4_VARIABLE_T), pointer   :: pNC_VAR_VALUES(:)    => null()
 
   end type NETCDF4_FILE_T
 
@@ -417,14 +392,18 @@ end function nf_julian_day_to_index_adj
 function nf_return_VarID( NCFILE, iVarIndex)   result(iVarID)
 
   type (NETCDF4_FILE_T ) :: NCFILE
-   integer (kind=c_int) :: iVarIndex
-   integer (kind=c_int) :: iVarID
+  integer (kind=c_int) :: iVarIndex
+  integer (kind=c_int) :: iVarID
 
-   type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
+  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
 
-   pNC_VAR => NCFILE%pNC_VAR(iVarIndex)
+  if ( iVarIndex >= lbound( NCFILE%pNC_VAR, 1) .and. iVarIndex <= ubound( NCFILE%pNC_VAR, 1) )  &
+    call die( "INTERNAL PROGRAMMING ERROR--index out of bounds: "//asCharacter(iVarIndex), &
+      __FILE__, __LINE__ )
 
-   iVarID = pNC_VAR%iNC_VarID
+  pNC_VAR => NCFILE%pNC_VAR(iVarIndex)
+
+  iVarID = pNC_VAR%iNC_VarID
 
 end function nf_return_VarID
 
@@ -433,14 +412,19 @@ end function nf_return_VarID
 function nf_return_DimID( NCFILE, iDimIndex)   result(iDimID)
 
   type (NETCDF4_FILE_T ) :: NCFILE
-   integer (kind=c_int) :: iDimIndex
-   integer (kind=c_int) :: iDimID
+  integer (kind=c_int) :: iDimIndex
+  integer (kind=c_int) :: iDimID
 
-   type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
+  type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
 
-   pNC_DIM => NCFILE%pNC_DIM(iDimIndex)
 
-   iDimID = pNC_DIM%iNC_DimID
+  if ( iDimIndex >= lbound( NCFILE%pNC_DIM, 1) .and. iDimIndex <= ubound( NCFILE%pNC_DIM, 1) )  &
+    call die( "INTERNAL PROGRAMMING ERROR--index out of bounds: "//asCharacter(iDimIndex), &
+      __FILE__, __LINE__ )
+
+  pNC_DIM => NCFILE%pNC_DIM(iDimIndex)
+
+  iDimID = pNC_DIM%iNC_DimID
 
 end function nf_return_DimID
 
@@ -469,9 +453,11 @@ function nf_return_VarIndex( NCFILE, iVarID)   result(iVarIndex)
 
   enddo
 
-  call assert(lFound, "INTERNAL PROGRAMMING ERROR - No matching variable " &
-    //"ID found: was looking for Variable ID: "//trim(asCharacter(iVarID)), &
-    trim(__FILE__), __LINE__)
+  if ( .not. lFound ) &
+
+    call die( "INTERNAL PROGRAMMING ERROR--No matching variable " &
+      //"ID found: was looking for Variable ID: "//trim(asCharacter(iVarID)), &
+      trim(__FILE__), __LINE__)
 
   iVarIndex = iIndex
 
@@ -490,15 +476,15 @@ function nf_return_AttValue( NCFILE, iVarIndex, sAttName)   result(sAttValue)
    integer (kind=c_int) :: iIndex, iIndex2
    logical (kind=c_bool) :: lFound
 
+  ! if no VarIndex, return pointer to GLOBAL attributes struct
   if (iVarIndex < 0) then
 
     pNC_ATT => NCFILE%pNC_ATT
 
   else
 
-    call assert(iVarIndex >= lbound(NCFILE%pNC_VAR,1) &
-      .and. iVarIndex <= ubound(NCFILE%pNC_VAR,1), &
-      "Index out of bounds referencing NCFILE%pNC_VAR" &
+    if (iVarIndex >= lbound(NCFILE%pNC_VAR,1) .and. iVarIndex <= ubound(NCFILE%pNC_VAR,1) )  &
+      call die("INTERNAL PROGRAMMING ERROR--Index out of bounds referencing NCFILE%pNC_VAR" &
       //"~Offending index value: "//trim(asCharacter(iVarIndex)), &
       trim(__FILE__), __LINE__)
 
@@ -517,7 +503,8 @@ function nf_return_AttValue( NCFILE, iVarIndex, sAttName)   result(sAttValue)
 
   enddo
 
-  call assert(lFound, "INTERNAL PROGRAMMING ERROR - No matching attribute " &
+  if ( .not. lFound ) &
+    call die( "INTERNAL PROGRAMMING ERROR--No matching attribute " &
     //"name found: was looking for attribute with name: "//dquote(sAttName), &
     trim(__FILE__), __LINE__)
 
@@ -555,7 +542,8 @@ function nf_return_DimIndex( NCFILE, iDimID)   result(iDimIndex)
 
   enddo
 
-  call assert(lFound, "INTERNAL PROGRAMMING ERROR - No matching dimension " &
+  if ( .not. lFound ) &
+    call die( "INTERNAL PROGRAMMING ERROR--No matching dimension " &
     //"ID found: was looking for Dimension ID: "//trim(asCharacter(iDimID)), &
     trim(__FILE__), __LINE__)
 
@@ -588,7 +576,8 @@ function nf_return_DimSize( NCFILE, iDimID)   result(iDimSize)
 
   enddo
 
-  call assert(lFound, "INTERNAL PROGRAMMING ERROR - No matching dimension " &
+  if ( .not. lFound ) &
+    call die( "INTERNAL PROGRAMMING ERROR - No matching dimension " &
     //"ID found: was looking for Dimension ID: "//trim(asCharacter(iDimID)), &
     trim(__FILE__), __LINE__)
 
@@ -624,7 +613,7 @@ subroutine netcdf_open_and_prepare_as_input(NCFILE, sFilename, &
   integer (kind=c_int) :: iColmin, iColmax, iRowmin, iRowmax
   integer (kind=c_int) :: iIndex
 
-  call nf_open_file(NCFILE=NCFILE, sFilename=sFilename)
+  call nf_open_file( NCFILE=NCFILE, sFilename=sFilename )
 
   call nf_populate_dimension_struct( NCFILE )
   call nf_populate_variable_struct( NCFILE )
