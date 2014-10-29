@@ -593,7 +593,7 @@ function nf_return_dimension_size( this, iDimensionID)   result(iDimensionSize)
   enddo
 
   if ( .not. lFound ) &
-    call die( "INTERNAL PROGRAMMING ERROR - No matching dimension " &
+    call die( "INTERNAL PROGRAMMING ERROR--No matching dimension " &
     //"ID found: was looking for Dimension ID: "//asCharacter(iDimensionID), &
     trim(__FILE__), __LINE__)
 
@@ -1333,10 +1333,11 @@ subroutine nf_populate_variable_struct( this )
     trim(__FILE__), __LINE__)
 
   ! iterate over all variables in file, collecting basic information about each
-  do iIndex = 0, ubound( this%pNC_VAR,1)
+  do iIndex = lbound( this%pNC_VAR,1), ubound( this%pNC_VAR,1)
 
     pNC_VAR => this%pNC_VAR(iIndex)
 
+    ! make actual call via C API to obtain variable information
     call nf_trap(nc_inq_var(ncid=this%iNCID, &
         varid=iIndex, &
         name=sVariableName, &
@@ -1397,6 +1398,16 @@ end subroutine nf_populate_variable_struct
 
 !--------------------------------------------------------------------------------------------------
 
+!> Retrieve attributes from NetCDF4 file.
+!!
+!! For a given variable ID and attribute, make inquiry of NetCDF file and populate the
+!! data structure.
+!!
+!! @param[inout] this Object of class NETCDF4_FILE_T.
+!! @param[inout] pNC_ATT Pointer to a NETCDF_ATTRIBUTE_T data structure.
+!! @param[in] iVariableID Integer value associated with a particular variable stored in the NetCDF file.
+!! @param[in] iAttNum Attribute index within pNC_ATT data structure.
+ 
 subroutine nf_populate_attribute_struct( this, pNC_ATT, iVariableID, iAttNum )
 
   type (NETCDF4_FILE_T), intent(inout) :: this
@@ -1406,11 +1417,12 @@ subroutine nf_populate_attribute_struct( this, pNC_ATT, iVariableID, iAttNum )
 
   ![ LOCALS ]
   integer (kind=c_int) :: iStat
-  character (len=256) :: sVariableName
-  character (len=256) :: sAttributeName
+  character (len=256)  :: sVariableName
+  character (len=256)  :: sAttributeName
   integer (kind=c_int) :: iIndex
   integer (kind=c_int) :: iLength
 
+  ! obtain attribute NAME
   call nf_trap( nc_inq_attname(ncid=this%iNCID, &
     varid=iVariableID, &
     attnum=iAttNum, &
@@ -1418,6 +1430,7 @@ subroutine nf_populate_attribute_struct( this, pNC_ATT, iVariableID, iAttNum )
 
   pNC_ATT%sAttributeName = c_to_fortran_string(sAttributeName)
 
+  ! obtain attribute SIZE and TYPE
   call nf_trap( nc_inq_att(ncid=this%iNCID, &
     varid=iVariableID, &
     name=sAttributeName, &
@@ -1426,12 +1439,14 @@ subroutine nf_populate_attribute_struct( this, pNC_ATT, iVariableID, iAttNum )
 
   iLength = pNC_ATT%iAttributeSize
 
+  ! make room for attribute VALUE in data structure
   iStat = 0
   allocate(pNC_ATT%sAttributeValue(0:iLength-1), stat=iStat )
-  call assert(iStat==0, "INTERNAL PROGRAMMING ERROR - problem allocating memory", &
+  call assert(iStat==0, "INTERNAL PROGRAMMING ERROR--problem allocating memory", &
     trim(__FILE__), __LINE__)
   pNC_ATT%sAttributeValue = ""
 
+  ! now get the actual attribute VALUE from the NetCDF4 file.
   select case(pNC_ATT%iAttributeType)
 
     case (NC_CHAR)
@@ -1446,7 +1461,7 @@ subroutine nf_populate_attribute_struct( this, pNC_ATT, iVariableID, iAttNum )
     case (NC_SHORT)
 
       allocate(pNC_ATT%i2AttValue(0:iLength-1), stat=iStat )
-      call assert(iStat==0, "INTERNAL PROGRAMMING ERROR - problem allocating memory", &
+      call assert(iStat==0, "INTERNAL PROGRAMMING ERROR--problem allocating memory", &
         trim(__FILE__), __LINE__)
 
 
@@ -1460,7 +1475,7 @@ subroutine nf_populate_attribute_struct( this, pNC_ATT, iVariableID, iAttNum )
     case (NC_INT)
 
       allocate(pNC_ATT%iAttValue(0:iLength-1), stat=iStat )
-      call assert(iStat==0, "INTERNAL PROGRAMMING ERROR - problem allocating memory", &
+      call assert(iStat==0, "INTERNAL PROGRAMMING ERROR--problem allocating memory", &
         trim(__FILE__), __LINE__)
 
       call nf_trap( nc_get_att_int(ncid=this%iNCID, &
@@ -1473,7 +1488,7 @@ subroutine nf_populate_attribute_struct( this, pNC_ATT, iVariableID, iAttNum )
     case (NC_FLOAT)
 
       allocate(pNC_ATT%rAttValue(0:iLength-1), stat=iStat )
-      call assert(iStat==0, "INTERNAL PROGRAMMING ERROR - problem allocating memory", &
+      call assert(iStat==0, "INTERNAL PROGRAMMING ERROR--problem allocating memory", &
         trim(__FILE__), __LINE__)
 
 
@@ -1487,7 +1502,7 @@ subroutine nf_populate_attribute_struct( this, pNC_ATT, iVariableID, iAttNum )
     case (NC_DOUBLE)
 
       allocate(pNC_ATT%dpAttValue(0:iLength-1), stat=iStat )
-      call assert(iStat==0, "INTERNAL PROGRAMMING ERROR - problem allocating memory", &
+      call assert(iStat==0, "INTERNAL PROGRAMMING ERROR--problem allocating memory", &
         trim(__FILE__), __LINE__)
 
       call nf_trap( nc_get_att_double(ncid=this%iNCID, &
@@ -3412,7 +3427,7 @@ subroutine nf_put_attributes(this)
           case (NC_DOUBLE)
 
             if (.not. allocated(pNC_ATT%dpAttValue) ) &
-              call die("INTERNAL PROGRAMMING ERROR - attempt to use unallocated variable; " &
+              call die("INTERNAL PROGRAMMING ERROR--attempt to use unallocated variable; " &
               //"attribute name: "//dquote(pNC_ATT%sAttributeName), &
               trim(__FILE__), __LINE__)
 
@@ -3424,7 +3439,7 @@ subroutine nf_put_attributes(this)
           case (NC_INT)
 
             if (.not. allocated(pNC_ATT%iAttValue) ) &
-              call die("INTERNAL PROGRAMMING ERROR - attempt to use unallocated variable; " &
+              call die("INTERNAL PROGRAMMING ERROR--attempt to use unallocated variable; " &
               //"attribute name: "//dquote(pNC_ATT%sAttributeName), &
               trim(__FILE__), __LINE__)
 
@@ -3436,7 +3451,7 @@ subroutine nf_put_attributes(this)
           case (NC_FLOAT)
 
             if (.not. allocated(pNC_ATT%rAttValue) ) &
-              call die("INTERNAL PROGRAMMING ERROR - attempt to use unallocated variable; " &
+              call die("INTERNAL PROGRAMMING ERROR--attempt to use unallocated variable; " &
               //"attribute name: "//dquote(pNC_ATT%sAttributeName), &
               trim(__FILE__), __LINE__)
 
@@ -3448,7 +3463,7 @@ subroutine nf_put_attributes(this)
           case (NC_CHAR)
 
             if (.not. allocated(pNC_ATT%sAttributeValue) ) &
-              call die("INTERNAL PROGRAMMING ERROR - attempt to use unallocated variable; " &
+              call die("INTERNAL PROGRAMMING ERROR--attempt to use unallocated variable; " &
               //"attribute name: "//dquote(pNC_ATT%sAttributeName), &
               trim(__FILE__), __LINE__)
 
@@ -3473,7 +3488,7 @@ subroutine nf_put_attributes(this)
       case (NC_DOUBLE)
 
         if (.not. allocated(pNC_ATT%sAttributeValue) ) &
-          call die("INTERNAL PROGRAMMING ERROR - attempt to use unallocated variable; " &
+          call die("INTERNAL PROGRAMMING ERROR--attempt to use unallocated variable; " &
           //"attribute name: "//dquote(pNC_ATT%sAttributeName), &
           trim(__FILE__), __LINE__)
 
@@ -3485,7 +3500,7 @@ subroutine nf_put_attributes(this)
       case (NC_INT)
 
         if (.not. allocated(pNC_ATT%sAttributeValue) ) &
-          call die("INTERNAL PROGRAMMING ERROR - attempt to use unallocated variable; " &
+          call die("INTERNAL PROGRAMMING ERROR--attempt to use unallocated variable; " &
           //"attribute name: "//dquote(pNC_ATT%sAttributeName), &
           trim(__FILE__), __LINE__)
 
@@ -3497,7 +3512,7 @@ subroutine nf_put_attributes(this)
       case (NC_FLOAT)
 
         if (.not. allocated(pNC_ATT%sAttributeValue) ) &
-          call die("INTERNAL PROGRAMMING ERROR - attempt to use unallocated variable; " &
+          call die("INTERNAL PROGRAMMING ERROR--attempt to use unallocated variable; " &
           //"attribute name: "//dquote(pNC_ATT%sAttributeName), &
           trim(__FILE__), __LINE__)
 
@@ -3509,7 +3524,7 @@ subroutine nf_put_attributes(this)
       case (NC_CHAR)
 
         if (.not. allocated(pNC_ATT%sAttributeValue) ) &
-          call die("INTERNAL PROGRAMMING ERROR - attempt to use unallocated variable; " &
+          call die("INTERNAL PROGRAMMING ERROR--attempt to use unallocated variable; " &
           //"attribute name: "//dquote(pNC_ATT%sAttributeName), &
           trim(__FILE__), __LINE__)
 
