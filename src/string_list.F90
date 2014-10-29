@@ -12,9 +12,14 @@ module string_list
 
   public :: assignment(=)
   interface assignment(=)
-    module procedure :: assign_string_list_to_string_list_sub
+    module procedure :: assign_string_list_to_string_list_sub, &
+                        assign_int_to_string_sub, &
+                        assign_float_to_string_sub, &
+                        assign_char_to_string_sub
+
   end interface assignment(=)
     
+
   type STRING_LIST_ELEMENT_T
 
     character (len=:), allocatable               :: s
@@ -71,6 +76,18 @@ contains
 
   end subroutine list_append_int_sub
 
+!--------------------------------------------------------------------------------------------------
+
+  subroutine list_append_float_sub( this, fValue )
+
+    class (STRING_LIST_T), intent(inout)   :: this
+    real (kind=c_float), intent(in)        :: fValue
+
+    call this%list_append_string_sub( asCharacter(fValue) )
+
+  end subroutine list_append_float_sub
+
+!--------------------------------------------------------------------------------------------------
   
   subroutine assign_string_list_to_string_list_sub(slList2, slList1)
 
@@ -92,7 +109,43 @@ contains
 
   end subroutine assign_string_list_to_string_list_sub
 
+!--------------------------------------------------------------------------------------------------
 
+  subroutine assign_char_to_string_sub( this, sText )
+
+    class (STRING_LIST_T), intent(inout)   :: this
+    character (len=*), intent(in)          :: sText
+
+    call list_items_deallocate_all_sub(this)
+    call list_append_string_sub(this, sText)
+
+  end subroutine assign_char_to_string_sub
+
+!--------------------------------------------------------------------------------------------------
+
+  subroutine assign_int_to_string_sub( this, iValue )
+
+    class (STRING_LIST_T), intent(inout)   :: this
+    integer (kind=c_int), intent(in)       :: iValue
+
+    call list_items_deallocate_all_sub(this)
+    call list_append_int_sub(this, iValue )
+
+  end subroutine assign_int_to_string_sub
+
+!--------------------------------------------------------------------------------------------------
+
+  subroutine assign_float_to_string_sub( this, fValue )
+
+    class (STRING_LIST_T), intent(inout)   :: this
+    real (kind=c_float), intent(in)        :: fValue
+
+    call list_items_deallocate_all_sub(this)
+    call list_append_float_sub(this, fValue)
+
+  end subroutine assign_float_to_string_sub
+
+!--------------------------------------------------------------------------------------------------
 
   subroutine list_append_string_sub( this, sText )
 
@@ -169,8 +222,7 @@ contains
 
   end function list_get_value_at_index_fn
 
-
-
+!--------------------------------------------------------------------------------------------------
 
   !> Iterate over a range of indices; return a space-delimited string comprised of the values.
   function list_get_values_in_range_fn(this, iStartIndex, iEndIndex)   result(sText)
@@ -211,9 +263,6 @@ contains
    
 
   end function list_get_values_in_range_fn
-
-
-
 
 !--------------------------------------------------------------------------------------------------
 
@@ -459,7 +508,7 @@ contains
 
   end function list_subset_partial_matches_fn
 
-
+!--------------------------------------------------------------------------------------------------
 
   subroutine list_items_deallocate_all_sub(this)
 
@@ -467,7 +516,7 @@ contains
     
     ! [ LOCALS ]
     type (STRING_LIST_ELEMENT_T), pointer :: current => null()
-    type (STRING_LIST_ELEMENT_T), pointer :: toremove => null()
+    type (STRING_LIST_ELEMENT_T), pointer :: elementtoremove => null()
 
     if ( associated(this%first) ) then
 
@@ -475,10 +524,10 @@ contains
 
       do while ( associated(current) )
 
-        toremove => current
+        elementtoremove => current
         current => current%next
 
-        deallocate(toremove%s)
+        deallocate(elementtoremove%s)
 
       enddo  
 
