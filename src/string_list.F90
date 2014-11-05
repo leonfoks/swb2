@@ -50,8 +50,8 @@ module string_list
 
     generic :: append        => list_append_string_sub, &
                                 list_append_int_sub
-    generic :: get           => list_get_value_at_index_fn, &
-                                list_get_values_in_range_fn
+    generic :: get           => list_get_value_at_index_fn
+    generic :: cat           => list_get_values_in_range_fn                 
     generic :: print         => list_print_sub
     generic :: grep          => list_subset_partial_matches_fn
     generic :: which         => list_return_position_of_matching_string_fn
@@ -227,40 +227,38 @@ contains
   !> Iterate over a range of indices; return a space-delimited string comprised of the values.
   function list_get_values_in_range_fn(this, iStartIndex, iEndIndex)   result(sText)
 
-    class (STRING_LIST_T), intent(in)        :: this
-    integer (kind=c_int), intent(in)         :: iStartIndex
-    integer (kind=c_int), intent(in)         :: iEndIndex
-    character (len=:), allocatable           :: sText
+    class (STRING_LIST_T), intent(in)                  :: this
+    integer (kind=c_int), intent(in), optional         :: iStartIndex
+    integer (kind=c_int), intent(in), optional         :: iEndIndex
+    character (len=:), allocatable                     :: sText
 
     ! [ LOCALS ]
-    integer (kind=c_int)                      :: iCount
+    integer (kind=c_int)                      :: iIndex
+    integer (kind=c_int)                      :: iStartIndex_
+    integer (kind=c_int)                      :: iEndIndex_    
+    character (len=1024)                      :: sTempText
     class (STRING_LIST_ELEMENT_T), pointer    :: current => null()
 
-    iCount = 0
 
-    current => this%first
+    if ( present( iStartIndex ) ) then
+      iStartIndex_ = iStartIndex
+    else
+      iStartIndex_ = 1
+    endif
 
-    do while ( associated( current ) .and. iCount < this%count )
+    if ( present( iEndIndex ) ) then
+      iEndIndex_ = iEndIndex
+    else
+      iEndIndex_ = this%count
+    endif
 
-      iCount = iCount + 1
+    sText = ""
 
-      if (iCount == iStartIndex ) then
-        sText = current%s
-      elseif (iCount > iStartIndex .and. iCount <= iEndIndex ) then  
-        sText = sText//" "//current%s
-      endif
-        
-      current => current%next
-
+    do iIndex = iStartIndex_, iEndIndex_
+      sTempText = sTempText//this%get( iIndex )
     enddo
-    
-    if ( len_trim(sText) == 0 ) then
-      sText = "<NA>"
-      call warn("Unable to find a pointer associated with index range: " &
-          //asCharacter(iStartIndex)//" to "//asCharacter(iEndIndex), &
-          __FILE__, __LINE__ )
-    endif  
-   
+ 
+    sText = trim( adjustl( sTempText ) )       
 
   end function list_get_values_in_range_fn
 
