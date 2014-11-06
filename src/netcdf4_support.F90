@@ -227,11 +227,10 @@ module netcdf4_support
     procedure :: nf_nullify_data_struct
     generic   :: nullify => nf_nullify_data_struct
 
-    procedure :: nf_get_varid
     procedure :: nf_dump_cdl
 
-    procedure :: nf_open_file
-    generic   :: open => nf_open_file
+    procedure :: nf_open_file_readonly
+    generic   :: open => nf_open_file_readonly
 
     procedure :: nf_close_file
     generic   :: close => nf_close_file
@@ -239,14 +238,7 @@ module netcdf4_support
     procedure :: nf_get_time_units
     procedure :: nf_get_time_values
 
-    procedure :: nf_get_variable_units
-
-    procedure :: nf_get_variable_slice
-    procedure :: nf_update_time_starting_index
-    procedure :: nf_put_variable_array
-    procedure :: nf_put_packed_variable_array
-    procedure :: nf_put_variable_vector
- 
+    procedure :: nf_get_variable_units 
 
   end type NETCDF4_FILE_T
 
@@ -1024,7 +1016,7 @@ end subroutine nf_nullify_data_struct
 
 subroutine nf_get_dimension_struct( this )
 
-  type (NETCDF4_FILE_T) :: this
+  class (NETCDF4_FILE_T) :: this
 
   ! [ LOCALS ]
   integer (kind=c_int) :: iStat
@@ -1065,7 +1057,7 @@ end subroutine nf_get_dimension_struct
 
 subroutine nf_get_variable_struct( this )
 
-  type (NETCDF4_FILE_T) :: this
+  class (NETCDF4_FILE_T) :: this
 
   ! [ LOCALS ]
   type (NETCDF4_ATTRIBUTE_T), pointer     :: pNC_ATT
@@ -1079,6 +1071,7 @@ subroutine nf_get_variable_struct( this )
   integer (kind=c_short), dimension(0:25) :: i2AttValue
   real (kind=c_double), dimension(0:25)   :: cdAttValue
   integer (kind=c_int)                    :: iNumberOfVariables
+  integer (kind=c_int)                    :: iNumberOfAttributes
 
   iStat = 0
 
@@ -1173,7 +1166,7 @@ end subroutine nf_get_variable_struct
 
 subroutine nf_get_attribute_struct( this, pNC_ATT, iVariableID, iAttNum )
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
   type (NETCDF4_ATTRIBUTE_T), pointer :: pNC_ATT
   integer (kind=c_int) :: iVariableID
   integer (kind=c_int) :: iAttNum
@@ -1298,14 +1291,14 @@ end subroutine nf_get_attribute_struct
 
 function nf_update_time_starting_index(this, iJulianDay)  result(lDateTimeFound)
 
-  type (NETCDF4_FILE_T)            :: this
+  class (NETCDF4_FILE_T)            :: this
   integer (kind=c_int), intent(in) :: iJulianDay
   logical (kind=c_bool)            :: lDateTimeFound
 
   ! [ LOCALS ]
   real (kind=c_double) :: rNC_DateTime
 
-  call assert( associated( pNC_VAR_TIME ), &
+  call assert( associated( this%pNC_VAR_TIME ), &
     "INTERNAL PROGRAMMING ERROR--attempted use of null pointer", __FILE__, __LINE__ )
 
   this%pNC_VAR_TIME%iStart = nf_julian_day_to_index_adj( this=this, &
@@ -1324,7 +1317,7 @@ end function nf_update_time_starting_index
 
 ! subroutine netcdf_get_variable_slice(this, pNC_VAR, rValues, iValues)
 
-!   type (NETCDF4_FILE_T)                          :: this
+!   class (NETCDF4_FILE_T)                          :: this
 !   type (NETCDF4_VARIABLE_T), pointer             :: pNC_VAR
 !   real (kind=c_float), dimension(:,:), optional  :: rValues
 !   integer (kind=c_int), dimension(:,:), optional :: iValues
@@ -1360,7 +1353,7 @@ end function nf_update_time_starting_index
 
 subroutine nf_get_variable_slice_short(this, pNC_VAR, rValues)
 
-  type (NETCDF4_FILE_T)                          :: this
+  class (NETCDF4_FILE_T)                          :: this
   type (NETCDF4_VARIABLE_T), pointer             :: pNC_VAR
   real (kind=c_float), dimension(:,:)            :: rValues
 
@@ -1439,7 +1432,7 @@ end subroutine nf_get_variable_slice_short
 
 subroutine nf_get_variable_slice_int(this, pNC_VAR, rValues)
 
-  type (NETCDF4_FILE_T)                          :: this
+  class (NETCDF4_FILE_T)                          :: this
   type (NETCDF4_VARIABLE_T), pointer             :: pNC_VAR
   real (kind=c_float), dimension(:,:)            :: rValues
 
@@ -1517,7 +1510,7 @@ end subroutine nf_get_variable_slice_int
 
 subroutine nf_get_variable_slice_float(this, pNC_VAR, rValues)
 
-  type (NETCDF4_FILE_T)                       :: this
+  class (NETCDF4_FILE_T)                       :: this
   type (NETCDF4_VARIABLE_T), pointer          :: pNC_VAR    
   real (kind=c_float), dimension(:,:)         :: rValues
 
@@ -1596,7 +1589,7 @@ end subroutine nf_get_variable_slice_float
 subroutine nf_get_variable_vector_short(this, iVariableID, iNC_Start, iNC_Count, &
    iNC_Stride, iNC_Vars)
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
   integer (kind=c_int) :: iVariableID
   integer (kind=c_size_t) :: iNC_Start
   integer (kind=c_size_t) :: iNC_Count
@@ -1617,7 +1610,7 @@ end subroutine nf_get_variable_vector_short
 subroutine nf_get_variable_array_short(this, iVariableID, iNC_Start, iNC_Count, &
    iNC_Stride, iNC_Vars)
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
   integer (kind=c_int) :: iVariableID
   integer (kind=c_size_t), dimension(:) :: iNC_Start
   integer (kind=c_size_t), dimension(:) :: iNC_Count
@@ -1638,7 +1631,7 @@ end subroutine nf_get_variable_array_short
 subroutine nf_get_variable_array_as_vector_short(this, iVariableID, iNC_Start, iNC_Count, &
    iNC_Stride, iNC_Vars)
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
   integer (kind=c_int) :: iVariableID
   integer (kind=c_size_t), dimension(:) :: iNC_Start
   integer (kind=c_size_t), dimension(:) :: iNC_Count
@@ -1659,7 +1652,7 @@ end subroutine nf_get_variable_array_as_vector_short
 subroutine nf_get_variable_array_as_vector_int(this, iVariableID, iNC_Start, iNC_Count, &
    iNC_Stride, iNC_Vars)
 
-  type (NETCDF4_FILE_T), intent(inout)     :: this
+  class (NETCDF4_FILE_T), intent(inout)     :: this
   integer (kind=c_int)                     :: iVariableID
   integer (kind=c_size_t), dimension(:)    :: iNC_Start
   integer (kind=c_size_t), dimension(:)    :: iNC_Count
@@ -1680,7 +1673,7 @@ end subroutine nf_get_variable_array_as_vector_int
 subroutine nf_get_variable_vector_int(this, iVariableID, iNC_Start, iNC_Count, &
    iNC_Stride, iNC_Vars)
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
   integer (kind=c_int) :: iVariableID
   integer (kind=c_size_t) :: iNC_Start
   integer (kind=c_size_t) :: iNC_Count
@@ -1701,7 +1694,7 @@ end subroutine nf_get_variable_vector_int
 subroutine nf_get_variable_vector_double(this, iVariableID, iNC_Start, iNC_Count, &
    iNC_Stride, dpNC_Vars)
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
   integer (kind=c_int) :: iVariableID
   integer (kind=c_size_t) :: iNC_Start
   integer (kind=c_size_t) :: iNC_Count
@@ -1722,7 +1715,7 @@ end subroutine nf_get_variable_vector_double
 subroutine nf_get_variable_array_double(this, iVariableID, iNC_Start, iNC_Count, &
    iNC_Stride, dpNC_Vars)
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
   integer (kind=c_int) :: iVariableID
   integer (kind=c_size_t), dimension(:) :: iNC_Start
   integer (kind=c_size_t), dimension(:) :: iNC_Count
@@ -1743,7 +1736,7 @@ end subroutine nf_get_variable_array_double
 subroutine nf_get_variable_array_as_vector_double(this, iVariableID, iNC_Start, iNC_Count, &
    iNC_Stride, dpNC_Vars)
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
   integer (kind=c_int) :: iVariableID
   integer (kind=c_size_t), dimension(:) :: iNC_Start
   integer (kind=c_size_t), dimension(:) :: iNC_Count
@@ -1764,7 +1757,7 @@ end subroutine nf_get_variable_array_as_vector_double
 subroutine nf_get_variable_vector_float(this, iVariableID, iNC_Start, iNC_Count, &
    iNC_Stride, rNC_Vars )
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
   integer (kind=c_int) :: iVariableID
   integer (kind=c_size_t) :: iNC_Start
   integer (kind=c_size_t) :: iNC_Count
@@ -1785,7 +1778,7 @@ end subroutine nf_get_variable_vector_float
 subroutine nf_get_variable_array_float(this, iVariableID, iNC_Start, iNC_Count, &
    iNC_Stride, rNC_Vars )
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
   integer (kind=c_int) :: iVariableID
   integer (kind=c_size_t), dimension(:) :: iNC_Start
   integer (kind=c_size_t), dimension(:) :: iNC_Count
@@ -1806,7 +1799,7 @@ end subroutine nf_get_variable_array_float
 subroutine nf_get_variable_array_as_vector_float(this, iVariableID, iNC_Start, iNC_Count, &
    iNC_Stride, rNC_Vars )
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
   integer (kind=c_int) :: iVariableID
   integer (kind=c_size_t), dimension(:) :: iNC_Start
   integer (kind=c_size_t), dimension(:) :: iNC_Count
@@ -2018,7 +2011,7 @@ end function nf_get_first_and_last
 
 subroutine nf_calculate_time_range(this)
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
 
   this%iOriginJD = julian_day(this%iOriginYear, &
     this%iOriginMonth, this%iOriginDay)
@@ -2032,7 +2025,7 @@ end subroutine nf_calculate_time_range
 
 subroutine nf_get_time_units(this)
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
 
   ! [ LOCALS ]
   character (len=256)   :: sDateTime
@@ -2042,7 +2035,7 @@ subroutine nf_get_time_units(this)
   integer (kind=c_int)  :: iStat
 
 
-  call assert( associated(pNC_VAR_TIME), "INTERNAL PROGRAMMING ERROR--attempted to use null pointer", &
+  call assert( associated(this%pNC_VAR_TIME), "INTERNAL PROGRAMMING ERROR--attempted to use null pointer", &
     __FILE__, __LINE__ )
 
 
@@ -2091,7 +2084,7 @@ end subroutine nf_get_time_units
 
 subroutine nf_get_variable_units(this)
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
 
   ! [ LOCALS ]
   type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
@@ -2128,7 +2121,7 @@ end subroutine nf_get_variable_units
 
 subroutine nf_get_scale_and_offset(this, pNC_VAR)
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
   type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
 
   ! [ LOCALS ]
@@ -2190,7 +2183,7 @@ end subroutine nf_get_scale_and_offset
 
 function nf_find_variable( this, sVariableName )    result( pNC_VAR )
 
-  type (NETCDF4_FILE_T), intent(inout) :: this
+  class (NETCDF4_FILE_T), intent(inout) :: this
   character (len=*), intent(in)        :: sVariableName
   type (NETCDF4_VARIABLE_T), pointer   :: pNC_VAR
 
@@ -2408,7 +2401,7 @@ end function nf_put_dimension
 
 subroutine nf_put_dimensions( this )
 
-  type (NETCDF4_FILE_T) :: this
+  class (NETCDF4_FILE_T) :: this
 
   ! [ LOCALS ]
   integer (kind=c_int) :: iIndex
@@ -2873,7 +2866,7 @@ end subroutine nf_put_dimensions
 
 subroutine nf_put_x_and_y(this, dpX, dpY)
 
-  type (NETCDF4_FILE_T) :: this
+  class (NETCDF4_FILE_T) :: this
   real (kind=c_double), dimension(:) :: dpX
   real (kind=c_double), dimension(:) :: dpY
 
@@ -2905,7 +2898,7 @@ end subroutine nf_put_x_and_y
 
 subroutine nf_put_lat_and_lon(this, dpLat, dpLon)
 
-  type (NETCDF4_FILE_T) :: this
+  class (NETCDF4_FILE_T) :: this
   real (kind=c_double), dimension(:,:) :: dpLat
   real (kind=c_double), dimension(:,:) :: dpLon
 
@@ -2960,7 +2953,7 @@ end function nf_put_variable
 
 subroutine nf_put_variables( this )
 
-  type (NETCDF4_FILE_T) :: this
+  class (NETCDF4_FILE_T) :: this
 
   ! [ LOCALS ]
   integer (kind=c_int) :: iStat
@@ -2999,12 +2992,12 @@ subroutine nf_put_attribute(this, iVariableID, sAttributeName, &
   sAttributeValue, iAttributeValue, rAttributeValue, dpAttributeValue)
 
   class (NETCDF4_FILE_T )             :: this
-  integer (kind=c_int) :: iVariableID
-  character (len=*)            :: sAttributeName
-  character (len=*), optional  :: sAttributeValue
-  integer (kind=c_int), optional :: iAttributeValue(:)
-  real (kind=c_float), optional :: rAttributeValue(:)
-  real (kind=c_double), optional :: dpAttributeValue(:)
+  integer (kind=c_int)                :: iVariableID
+  character (len=*)                   :: sAttributeName
+  character (len=*), optional         :: sAttributeValue
+  integer (kind=c_int), optional      :: iAttributeValue(:)
+  real (kind=c_float), optional       :: rAttributeValue(:)
+  real (kind=c_double), optional     :: dpAttributeValue(:)
 
   ! [ LOCALS ]
   integer (kind=c_size_t) :: iNumberOfAttributes
@@ -3018,7 +3011,7 @@ subroutine nf_put_attribute(this, iVariableID, sAttributeName, &
                     varid=iVariableID, &
                     name=trim(sAttributeName), &
                     nlen=iNumberOfAttributes, &
-                    tp=trim(sAttributeValue(1))), &
+                    tp=trim( sAttributeValue )), &
                     __FILE__, __LINE__)
 
   elseif (present(iAttributeValue) ) then
@@ -3069,12 +3062,13 @@ subroutine nf_put_attributes(this)
   class (NETCDF4_FILE_T )             :: this
 
   ! [ LOCALS ]
-  integer (kind=c_size_t) :: iNumberOfAttributes
-  type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
+  integer (kind=c_size_t)             :: iNumberOfAttributes
+  type (NETCDF4_VARIABLE_T), pointer  :: pNC_VAR
   type (NETCDF4_ATTRIBUTE_T), pointer :: pNC_ATT
-  integer (kind=c_int) :: iIndex
-  integer (kind=c_int) :: iIndex2
-  integer (kind=c_int) :: iStat
+  integer (kind=c_int)                :: iIndex
+  integer (kind=c_int)                :: iIndex2
+  integer (kind=c_int)                :: iStat
+  character (len=256)                 :: sBuf
 
   ! loop over variables
   do iIndex = 0, ubound(this%pNC_VAR,1)
@@ -3084,7 +3078,7 @@ subroutine nf_put_attributes(this)
     ! for each variable, loop over the associated attributes
     do iIndex2 = 0, ubound(pNC_VAR%pNC_ATT,1)
 
-      pNC_ATT => this%pNC_VAR%pNC_ATT(iIndex2)
+      pNC_ATT => pNC_VAR%pNC_ATT(iIndex2)
 
         select case (pNC_ATT%iAttributeType)
 
@@ -3126,10 +3120,12 @@ subroutine nf_put_attributes(this)
 
           case (NC_CHAR)
 
+            sBuf = trim(pNC_ATT%slValues%cat() )
+
             call nf_put_attribute(this=this, &
                 iVariableID=pNC_VAR%iVariableID, &
                 sAttributeName=trim(pNC_ATT%sAttributeName)//c_null_char, &
-                sAttributeValue=[trim(pNC_ATT%slValues%cat() )//c_null_char])
+                sAttributeValue= [ sBuf //c_null_char ] )
 
         end select
 
