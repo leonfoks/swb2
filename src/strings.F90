@@ -21,15 +21,15 @@ module strings
 !     procedure :: double_to_char_sub
 !   end interface assignment(=)
 
-   public :: operator(.strequal.)
-   interface operator(.strequal.)
+   public :: operator( .strequal. )
+   interface operator( .strequal. )
      procedure :: is_char_equal_to_char_fn
 !     procedure :: is_logical4_equal_to_logical1_fn
 !     procedure :: is_logical1_equal_to_logical4_fn
    end interface operator(.strequal.)
 
-    public :: operator(.contains.)
-    interface operator(.contains.)
+    public :: operator( .contains. )
+    interface operator( .contains. )
       procedure :: is_string2_present_in_string1_fn
     end interface operator(.contains.)  
 
@@ -554,7 +554,7 @@ contains
     integer (kind=c_int) :: iIndex
 
     if ( present(sDelimiters) ) then
-      select case (sDelimiters)
+      select case ( trim(sDelimiters) )
         case ("WHITESPACE")
           sDelimiters_ = sWHITESPACE
         case ("TAB", "TABS")  

@@ -71,8 +71,13 @@ module data_catalog_entry
     type (GRID_BOUNDS_T)     :: GRID_BOUNDS_NATIVE
     type (GRID_BOUNDS_T)     :: GRID_BOUNDS_BASE
 
-    integer (kind=c_int)     :: iNC_FILE_STATUS = NETCDF_FILE_CLOSED
-    type (NETCDF4_FILE_T)    :: NCFILE
+    integer (kind=c_int)      :: iNC_FILE_STATUS = NETCDF_FILE_CLOSED
+    type (NETCDF4_FILE_T)     :: NCFILE
+
+    type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR_X       => null()
+    type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR_Y       => null()
+    type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR_VALUE  => null()
+    type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR_TIME    => null()
 
     integer (kind=c_int)     :: iNC_ARCHIVE_STATUS = NETCDF_FILE_CLOSED
     type (NETCDF4_FILE_T)    :: NCFILE_ARCHIVE
@@ -147,7 +152,7 @@ module data_catalog_entry
 
     procedure, private :: set_const_int => set_constant_value_int
     procedure, private :: set_const_real => set_constant_value_real
-    generic, public :: set_constant => set_const_int, set_const_real
+    generic, public    :: set_constant => set_const_int, set_const_real
 
     procedure, public :: make_filename => make_filename_from_template
     procedure, public :: set_PROJ4 => set_PROJ4_string_sub
@@ -159,11 +164,11 @@ module data_catalog_entry
 
     procedure, private :: enforce_limits_real => data_GridEnforceLimits_real
     procedure, private :: enforce_limits_int => data_GridEnforceLimits_int
-    generic, public :: enforce_limits => enforce_limits_real, enforce_limits_int
+    generic, public    :: enforce_limits => enforce_limits_real, enforce_limits_int
 
     procedure, private :: handle_missing_values_real => data_GridHandleMissingData_real
     procedure, private :: handle_missing_values_int => data_GridHandleMissingData_int
-    generic, public :: handle_missing_values => handle_missing_values_real, &
+    generic, public    :: handle_missing_values => handle_missing_values_real, &
                                         handle_missing_values_int
 
     procedure, public :: calc_project_boundaries => calc_project_boundaries

@@ -10,7 +10,10 @@ module constants_and_conversions
   use iso_c_binding, only : c_short, c_int, c_float, c_double, c_bool
   implicit none
 
-  ! 
+  private
+
+  public :: DATATYPE_INT, DATATYPE_FLOAT, DATATYPE_REAL, DATATYPE_SHORT
+  public :: DATATYPE_DOUBLE, DATATYPE_NA
   integer (kind=c_int), parameter :: DATATYPE_INT     = 0
   integer (kind=c_int), parameter :: DATATYPE_FLOAT   = 1
   integer (kind=c_int), parameter :: DATATYPE_REAL    = 1
@@ -53,14 +56,15 @@ module constants_and_conversions
 
 
   ! [ special ASCII characters ]
-  public :: sTAB, sWHITESPACE, sBACKSLASH, sFORWARDSLASH, sRETURN, sCOMMENT_CHARS
-  character (len=1), parameter :: sTAB = achar(9)
-  character (len=2), parameter :: sWHITESPACE = achar(9)//" "
-  character (len=1), parameter :: sBACKSLASH = achar(92)
-  character (len=1), parameter :: sFORWARDSLASH = achar(47)
-  character (len=1), parameter :: sRETURN = achar(13)
+  public :: sTAB, sWHITESPACE, sBACKSLASH, sFORWARDSLASH, sRETURN, sCOMMENT_CHARS, sNEWLINE
+  character (len=1), parameter :: sTAB           = achar(9)
+  character (len=2), parameter :: sWHITESPACE    = achar(9)//" "
+  character (len=1), parameter :: sBACKSLASH     = achar(92)
+  character (len=1), parameter :: sFORWARDSLASH  = achar(47)
+  character (len=1), parameter :: sNEWLINE       = achar(10)
+  character (len=1), parameter :: sRETURN        = achar(13)
   character (len=3), parameter :: sCOMMENT_CHARS = "#!%"
-  character (len=1), parameter :: sDOUBLE_QUOTE = achar(34)
+  character (len=1), parameter :: sDOUBLE_QUOTE  = achar(34)
 
   ! [ select conversion factors ]
   real (kind=c_double), parameter :: C_PER_F = 5.0_c_double / 9.0_c_double
@@ -68,6 +72,7 @@ module constants_and_conversions
 
 
 ! this type is still needed for the grid module
+public :: T_CELL
 type T_CELL
       integer (kind=c_int) :: iFlowDir = iZERO    ! Flow direction from flow-dir grid
       integer (kind=c_int) :: iSoilGroup = iZERO  ! Soil type from soil-type grid
@@ -85,6 +90,7 @@ type T_CELL
 
   end type T_CELL
 
+  public :: BOUNDS_T
   type BOUNDS_T
     character (len=:), allocatable  :: sPROJ4_string
     integer (kind=c_int)            :: iNumCols
@@ -94,7 +100,9 @@ type T_CELL
     real (kind=c_double)            :: fGridcellSize
   end type BOUNDS_T
 
-  type (BOUNDS_T), public :: BNDS
+  public :: BNDS
+  type (BOUNDS_T) :: BNDS
+
 
   public :: operator(.approxequal.)
   interface operator(.approxequal.)
@@ -102,8 +110,6 @@ type T_CELL
     module procedure approx_equal_double_double
     module procedure approx_equal_float_double
   end interface operator(.approxequal.)  
-
-
 
   !> establish generic interfaces to single and double precision functions
   public :: C_to_F
