@@ -3,7 +3,7 @@
 !!  provides support for use of NetCDF files as input or output.
 !!
 !! Supports use of NetCDF files as input for time-varying,
-!! gridded meteorlogic data, or output for any SWB-generated variable.
+!! gridded meteorologic data, or output for any SWB-generated variable.
 !!
 !! from the C API:
 !! The @c nc_get_vars_ type family of functions read a subsampled (strided)
@@ -30,15 +30,13 @@ module netcdf4_support
   use datetime
   use exceptions
   use logfiles
-  use nf_c_api_interfaces
+  use netcdf_c_api_interfaces
   use strings
   use string_list
   use swb_grid
   implicit none
 
   private
-
-  public :: NC_FILL_FLOAT
 
   integer(kind=c_int), public :: NC_READONLY          = 0
   integer(kind=c_int), public :: NC_READWRITE         = 1

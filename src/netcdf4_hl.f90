@@ -106,21 +106,41 @@ module netcdf4_hl
 
   contains
 
-    procedure :: nf_date_within_range
-    generic   :: is_date_valid => nf_date_within_range
+    procedure :: date_within_range
+    generic   :: is_date_valid => date_within_range
 
-    procedure :: nf_deallocate_data_struct
-    generic   :: deallocate => nf_deallocate_data_struct
+    procedure :: deallocate_data_struct
+    generic   :: deallocate => deallocate_data_struct
 
-    procedure :: nf_nullify_data_struct
-    generic   :: nullify => nf_nullify_data_struct
+    procedure :: nullify_data_struct
+    generic   :: nullify => nullify_data_struct
 
-    procedure :: nf_dump_cdl
+    procedure :: dump_cdl
 
-    procedure :: nf_get_time_units
-    procedure :: nf_get_time_values
+    procedure :: define_iteration_bounds
+    procedure :: define_start_count_stride
 
-    procedure :: nf_get_variable_units 
+    procedure :: get_time_units
+    procedure :: get_time_values
+
+    procedure :: get_dimension_struct
+    procedure :: get_variable_struct
+    procedure :: get_variable_units 
+
+    procedure :: dimension_index_to_dimension_id
+    procedure :: dimension_id_to_dimension_index
+
+    procedure :: variable_name_to_variable_id
+    procedure :: variable_index_to_variable_id
+    procedure :: variable_id_to_variable_index
+
+    procedure :: return_dimension_index
+    procedure :: return_variable_index
+
+    procedure :: index_to_dayvalue
+    procedure :: dayvalue_to_julian_day
+    procedure :: julian_day_to_index
+    procedure :: julian_day_to_index_adj
 
     procedure :: open_and_prepare_as_input
     procedure :: open_and_prepare_as_output
@@ -142,12 +162,15 @@ module netcdf4_hl
 !
 ! A note on verbs:
 !
-! if "put" is in the name: subroutine calls routines that WRITE to NetCDF
-! if "get" is in the name: subroutine calls routines that READ from NetCDF
+! ==> The following *only* manipulate the module data structure
+! if "to" is in the name: subroutine or function converts from one unit to another
 ! if "set" is in the name: subroutine alters the values of variables within the NCFILE data structures
 ! if "return" is in the name: subroutine queries the NCFILE data structure and returns the values found therein
+
+! ==> The following read or write to/from an open NetCDF file
+! if "put" is in the name: subroutine calls routines that WRITE to NetCDF
+! if "get" is in the name: subroutine calls routines that READ from NetCDF
 ! if "define" is in the name: subroutine calls routines to DEFINE variables, dimensions, or attributes in the NetCDF file
-!
 
 contains
 
@@ -179,10 +202,10 @@ contains
     integer (kind=c_int)               :: iIndex
 
 
-    call nf_open_file( iNCID=this%iNCID, sFilename=sFilename )
+    call nf_open_file( iNCID=this%iNCID, sFilename=sFilename, iFileformat=NC_FORMAT_NETCDF4 )
 
-    call nf_get_dimension_struct( this )
-    call nf_get_variable_struct( this )
+    call this%get_dimension_struct()
+    call this%get_variable_struct()
 
     if (present(lFlipHorizontal) ) this%lFlipHorizontal = lFlipHorizontal
     if (present(lFlipVertical) ) this%lFlipVertical = lFlipVertical
@@ -555,7 +578,7 @@ contains
 
 !--------------------------------------------------------------------------------------------------
 
-  function lookup_variable_id( this, sVariableName )    result( iVariableID )
+  function variable_name_to_variable_id( this, sVariableName )    result( iVariableID )
 
     class (NETCDF4_FILE_T )                   :: this
     character (len=*), intent(in)             :: sVariableName
@@ -584,11 +607,11 @@ contains
 
     enddo
 
-  end function lookup_variable_id
+  end function variable_name_to_variable_id
 
 !--------------------------------------------------------------------------------------------------
 
-  function return_variable_id( this, iVariableIndex)   result(iVariableID)
+  function variable_index_to_variable_id( this, iVariableIndex)   result(iVariableID)
 
     class (NETCDF4_FILE_T )             :: this
     integer (kind=c_int), intent(in)    :: iVariableIndex
@@ -609,11 +632,11 @@ contains
 
     iVariableID = pNC_VAR%iVariableID
 
-  end function return_variable_id
+  end function variable_index_to_variable_id
 
 !--------------------------------------------------------------------------------------------------
 
-  function return_dimension_id( this, iDimensionIndex)   result(iDimensionID)
+  function dimension_index_to_dimension_id( this, iDimensionIndex)   result(iDimensionID)
 
     class (NETCDF4_FILE_T )             :: this
     integer (kind=c_int), intent(in)    :: iDimensionIndex
@@ -634,11 +657,11 @@ contains
 
     iDimensionID = pNC_DIM%iDimensionID
 
-  end function return_dimension_id
+  end function dimension_index_to_dimension_id
 
 !--------------------------------------------------------------------------------------------------
 
-  function return_variable_index( this, iVariableID)   result(iVariableIndex)
+  function variable_id_to_variable_index( this, iVariableID)   result(iVariableIndex)
 
     class (NETCDF4_FILE_T )             :: this
      integer (kind=c_int), intent(in)   :: iVariableID
@@ -674,7 +697,7 @@ contains
 
     iVariableIndex = iIndex
 
-  end function return_variable_index
+  end function variable_id_to_variable_index
 
 !--------------------------------------------------------------------------------------------------
 
@@ -727,7 +750,7 @@ contains
 
 !--------------------------------------------------------------------------------------------------
 
-  function return_dimension_index( this, iDimensionID)   result(iDimensionIndex)
+  function dimension_id_to_dimension_index( this, iDimensionID)   result(iDimensionIndex)
 
     class (NETCDF4_FILE_T )             :: this
      integer (kind=c_int), intent(in)   :: iDimensionID
@@ -762,7 +785,7 @@ contains
 
     iDimensionIndex = iIndex
 
-  end function return_dimension_index
+  end function dimension_id_to_dimension_index
 
 !--------------------------------------------------------------------------------------------------
 
@@ -805,7 +828,7 @@ contains
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine define_iteration_bounds(this)
+  subroutine set_iteration_bounds(this)
 
     class (NETCDF4_FILE_T )             :: this
 
@@ -829,11 +852,11 @@ contains
       this%iColIter(NC_BY) = 1
     endif
 
-  end subroutine define_iteration_bounds
+  end subroutine set_iteration_bounds
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine define_start_count_stride(this, pNC_VAR)
+  subroutine set_start_count_stride(this, pNC_VAR)
 
     class (NETCDF4_FILE_T )             :: this
     type (NETCDF4_VARIABLE_T), pointer  :: pNC_VAR
@@ -872,11 +895,11 @@ contains
     pNC_VAR%iStride = 1_c_size_t
 
 
-  end subroutine define_start_count_stride
+  end subroutine set_start_count_stride
 
 !--------------------------------------------------------------------------------------------------
 
-  function nf_coord_to_col_row(this, rX, rY)   result(iColRow)
+  function coord_to_col_row(this, rX, rY)   result(iColRow)
 
     class (NETCDF4_FILE_T ), intent(inout)         :: this
     real (kind=c_double), intent(in)               :: rX
@@ -913,15 +936,15 @@ contains
     iColRow(COLUMN) = iColNum
     iColRow(ROW) = iRowNum
 
-  end function nf_coord_to_col_row
+  end function coord_to_col_row
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine put_x_and_y(this, dpX, dpY)
+  subroutine put_x_and_y(this, dX, dY)
 
     class (NETCDF4_FILE_T) :: this
-    real (kind=c_double), dimension(:) :: dpX
-    real (kind=c_double), dimension(:) :: dpY
+    real (kind=c_double), dimension(:) :: dX
+    real (kind=c_double), dimension(:) :: dY
 
     ! [ LOCALS ]
     integer (kind=c_size_t) :: iLength
@@ -934,7 +957,7 @@ contains
                      iStart=[0_c_size_t], &
                      iCount=[iLength], &
                      iStride=[1_c_ptrdiff_t], &
-                     dpValues=dpX)
+                     dpValues=dX)
 
     iLength = int(size(dpY, 1), kind=c_size_t)
 
@@ -943,7 +966,7 @@ contains
                      iStart=[0_c_size_t], &
                      iCount=[iLength], &
                      iStride=[1_c_ptrdiff_t], &
-                     dpValues=dpY)
+                     dpValues=dY)
 
   end subroutine put_x_and_y
 
@@ -1042,11 +1065,11 @@ contains
 
     !> @todo allow time to be read in as float, short, or int as well
 
-    call nf_get_variable_vector_double(this=this,    &
-         iVariableID=this%pNC_VAR_TIME%iVariableID,  &
-         iNC_Start=0_c_size_t,                       &
-         iNC_Count=this%pNC_DIM_TIME%iDimensionSize,    &
-         iNC_Stride=1_c_size_t,                      &
+    call nf_get_variable_vector_double(this=this,          &
+         iVariableID=this%pNC_VAR_TIME%iVariableID,        &
+         iNC_Start=0_c_size_t,                             &
+         iNC_Count=this%pNC_DIM_TIME%iDimensionSize,       &
+         iNC_Stride=1_c_size_t,                            &
          dNC_Vars=this%rDateTimeValues)
 
   end subroutine get_time_values
@@ -1196,7 +1219,7 @@ contains
 !! 
 !! @note This subroutine is designed to be used when dealing with a READONLY file. 
 
-  subroutine get_dimension_struct( this )
+  subroutine get_dimensions( this )
 
     class (NETCDF4_FILE_T), intent(inout)        :: this
 
@@ -1233,11 +1256,20 @@ contains
 
     enddo
 
-  end subroutine get_dimension_struct
+  end subroutine get_dimensions
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine get_variable_struct( this )
+!> Iterate over all variable elements stored in a READONLY NetCDF file.
+!!
+!! The number of variables, variable names, and variable sizes
+!! are determined by querying the NetCDF file and are stored in the NETCDF4_VARIABLE_T structure.
+!!
+!! @param[inout] this Object of class NETCDF4_FILE_T.
+!! 
+!! @note This subroutine is designed to be used when dealing with a READONLY file. 
+
+  subroutine get_variables( this )
 
     class (NETCDF4_FILE_T), intent(inout)        :: this
 
@@ -1257,15 +1289,17 @@ contains
 
     iStat = 0
 
-    ! find out how many VARIABLES the file contains
-    call nf_trap( nc_inq_nvars(ncid=this%iNCID, nvarsp=iNumberOfVariables), &
-         __FILE__, __LINE__ )
+    ! find out how many VARIABLES the NetCDF file contains
+    call nf_trap( nc_inq_nvars( ncid=this%iNCID,         &
+           nvarsp=iNumberOfVariables),                   &
+           __FILE__, __LINE__ )
 
-    ! make space in the this%pNC_VAR data structure for all variables in file
+    ! deallocate this%pNC_VAR data if already in use
     if (associated(this%pNC_VAR) ) deallocate(this%pNC_VAR, stat=iStat)
     call assert(iStat == 0, "Could not deallocate memory for NC_VAR member in NC_FILE defined type", &
       trim(__FILE__), __LINE__)
 
+    ! make space in the this%pNC_VAR data structure for all variables in file
     allocate(this%pNC_VAR( 0 : iNumberOfVariables-1), stat=iStat )
     call assert(iStat == 0, "Could not allocate memory for NC_VAR member in NC_FILE defined type", &
       trim(__FILE__), __LINE__)
@@ -1276,13 +1310,14 @@ contains
       pNC_VAR => this%pNC_VAR(iIndex)
 
       ! make actual call via C API to obtain variable information
-      call nf_trap(nc_inq_var(ncid=this%iNCID, &
-          varid=iIndex, &
-          name=sVariableName, &
-          xtypep=pNC_VAR%iVariableType, &
-          ndimsp=pNC_VAR%iNumberOfDimensions, &
-          dimidsp=pNC_VAR%iDimensionID, &
-          nattsp=pNC_VAR%iNumberOfAttributes ), __FILE__, __LINE__ )
+      call nf_trap( nc_inq_var(ncid=this%iNCID,          &
+             varid=iIndex,                               &
+             name=sVariableName,                         &
+             xtypep=pNC_VAR%iVariableType,               &
+             ndimsp=pNC_VAR%iNumberOfDimensions,         &
+             dimidsp=pNC_VAR%iDimensionID,               &
+             nattsp=pNC_VAR%iNumberOfAttributes ),       & 
+             __FILE__, __LINE__ )
 
       pNC_VAR%iVariableID = iIndex
       pNC_VAR%sVariableName = c_to_fortran_string(sVariableName)
@@ -1290,11 +1325,13 @@ contains
       ! each variable may have many attributes. if so, find them.
       if( pNC_VAR%iNumberOfAttributes > 0 ) then
 
-        if (associated(pNC_VAR%pNC_ATT) ) deallocate(pNC_VAR%pNC_ATT, stat=iStat)
+        if ( associated( pNC_VAR%pNC_ATT ) )    deallocate(pNC_VAR%pNC_ATT, stat=iStat)
+
         call assert(iStat == 0, "Could not deallocate memory for NC_ATT member within NC_VAR in NC_FILE defined type", &
           trim(__FILE__), __LINE__)
 
         allocate( pNC_VAR%pNC_ATT( 0:pNC_VAR%iNumberOfAttributes - 1 ), stat = iStat)
+
         call assert(iStat == 0, "Could not allocate memory for NC_ATT member within NC_VAR in NC_FILE defined type", &
           trim(__FILE__), __LINE__)
 
@@ -1302,8 +1339,7 @@ contains
 
           pNC_ATT => pNC_VAR%pNC_ATT(iIndex2)
 
-          call nf_get_attribute_struct( this=this, pNC_ATT=pNC_ATT, &
-            iVariableID=iIndex, iAttNum=iIndex2 )
+          call this%get_attribute( pNC_ATT=pNC_ATT, iVariableID=iIndex, iAttNum=iIndex2 )
 
         enddo
 
@@ -1312,8 +1348,9 @@ contains
     enddo
 
     ! now find out how many GLOBAL attributes the file contains
-    call nf_trap( nc_inq_natts(ncid=this%iNCID, ngattsp=iNumberOfAttributes), &
-         __FILE__, __LINE__ )
+    call nf_trap( nc_inq_natts(ncid=this%iNCID,       &
+           ngattsp=iNumberOfAttributes),              &
+           __FILE__, __LINE__ )
 
     if ( associated(this%pNC_ATT) )  deallocate(this%pNC_ATT, stat=iStat)
     call assert(iStat == 0, "Could not deallocate memory for NC_ATT member within NC_FILE defined type", &
@@ -1332,7 +1369,7 @@ contains
 
     enddo
 
-  end subroutine get_variable_struct
+  end subroutine get_variables
 
 !--------------------------------------------------------------------------------------------------
 
@@ -1346,7 +1383,7 @@ contains
 !! @param[in] iVariableID Integer value associated with a particular variable stored in the NetCDF file.
 !! @param[in] iAttNum Attribute index within pNC_ATT data structure.
 
-  subroutine get_attribute_struct( this, pNC_ATT, iVariableID, iAttNum )
+  subroutine get_attribute( this, pNC_ATT, iVariableID, iAttNum )
 
     class (NETCDF4_FILE_T), intent(inout)        :: this
     type (NETCDF4_ATTRIBUTE_T), pointer          :: pNC_ATT
@@ -1467,7 +1504,7 @@ contains
 
     end select
 
-  end subroutine get_attribute_struct
+  end subroutine get_attribute
 
 !--------------------------------------------------------------------------------------------------
 
@@ -1497,7 +1534,7 @@ contains
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine nf_put_attributes(this)
+  subroutine put_attributes(this)
 
     class (NETCDF4_FILE_T )             :: this
 
@@ -1610,11 +1647,11 @@ contains
 
     enddo
 
-  end subroutine nf_put_attributes
+  end subroutine put_attributes
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine nf_put_dimensions( this )
+  subroutine put_dimensions( this )
 
     class (NETCDF4_FILE_T) :: this
 
@@ -1622,19 +1659,19 @@ contains
     integer (kind=c_int) :: iIndex
     type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
 
-    do iIndex = 0, ubound( this%pNC_DIM, 1 )
+    do iIndex = lbound( this%pNC_DIM, 1 ), ubound( this%pNC_DIM, 1 )
 
-      pNC_DIM => this%pNC_DIM(iIndex)
+      pNC_DIM => this%pNC_DIM( iIndex )
 
-      call nf_trap(nc_def_dim(ncid=this%iNCID, &
-        name=trim(pNC_DIM%sDimensionName)//c_null_char, &
-        lenv=pNC_DIM%iDimensionSize, &
-        dimidp=pNC_DIM%iDimensionID), &
-        __FILE__, __LINE__ )
+      call nf_trap( nc_def_dim( ncid=this%iNCID,                       &
+             name=fortran_to_c_string( pNC_DIM%sDimensionName ) ),     &
+             lenv=pNC_DIM%iDimensionSize,                              &
+             dimidp=pNC_DIM%iDimensionID),                             &
+             __FILE__, __LINE__ )
 
     enddo
 
-  end subroutine nf_put_dimensions
+  end subroutine put_dimensions
 
 !--------------------------------------------------------------------------------------------------
 
@@ -1661,13 +1698,13 @@ contains
 
       if ( len_trim( pNC_VAR%sVariableName ) > 0 ) then
 
-        call nf_trap( nc_def_var(ncid=this%iNCID,&
-                                 name=trim(fortran_to_c_string(pNC_VAR%sVariableName)), &
-                                 xtype=pNC_VAR%iVariableType, &
-                                 ndims=pNC_VAR%iNumberOfDimensions, &
-                                 dimidsp=pNC_VAR%iDimensionID, &
-                                 varidp=pNC_VAR%iVariableID), &
-                                 __FILE__, __LINE__)
+        call nf_trap( nc_def_var(ncid=this%iNCID,                          &
+               name=fortran_to_c_string(pNC_VAR%sVariableName),            &
+               xtype=pNC_VAR%iVariableType,                                &
+               ndims=pNC_VAR%iNumberOfDimensions,                          &
+               dimidsp=pNC_VAR%iDimensionID,                               &
+               varidp=pNC_VAR%iVariableID),                                &
+               __FILE__, __LINE__)
 
       endif
 
@@ -1912,7 +1949,7 @@ contains
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine nf_dump_cdl(this, iLU)
+  subroutine dump_cdl(this, iLU)
 
     class (NETCDF4_FILE_T )             :: this
     integer                             :: iLU
@@ -2015,11 +2052,11 @@ contains
     write(unit=iLU, fmt="(a,/,/)") "}"
 
 
-  end subroutine nf_dump_cdl
+  end subroutine dump_cdl
 
 !--------------------------------------------------------------------------------------------------
 
-  function nf_get_first_and_last(this, pNC_VAR)  result(dpValues)
+  function get_first_and_last(this, pNC_VAR)  result(dpValues)
 
     type (NETCDF4_FILE_T )             :: this 
     type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
@@ -2100,11 +2137,11 @@ contains
     !> first day equals the last day
     if (iCount == 1) dpValues(NC_LAST) = dpValues(NC_FIRST)
 
-  end function nf_get_first_and_last
+  end function get_first_and_last
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine nf_calculate_time_range(this)
+  subroutine calculate_time_range(this)
 
     class (NETCDF4_FILE_T), intent(inout) :: this
 
@@ -2114,11 +2151,11 @@ contains
     this%iFirstDayJD = this%iOriginJD + this%dpFirstAndLastTimeValues(NC_FIRST)
     this%iLastDayJD = this%iOriginJD + this%dpFirstAndLastTimeValues(NC_LAST)
 
-  end subroutine nf_calculate_time_range
+  end subroutine calculate_time_range
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine nf_get_time_units(this)
+  subroutine get_time_units(this)
 
     class (NETCDF4_FILE_T), intent(inout) :: this
 
@@ -2173,11 +2210,11 @@ contains
 
     read(sDateTime, *) this%iOriginSS
 
-  end subroutine nf_get_time_units
+  end subroutine get_time_units
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine nf_get_variable_units(this)
+  subroutine get_variable_units(this)
 
     class (NETCDF4_FILE_T), intent(inout) :: this
 
@@ -2210,11 +2247,11 @@ contains
 
     enddo
 
-  end subroutine nf_get_variable_units
+  end subroutine get_variable_units
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine nf_get_scale_and_offset(this, pNC_VAR)
+  subroutine get_scale_and_offset(this, pNC_VAR)
 
     class (NETCDF4_FILE_T), intent(inout) :: this
     type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
@@ -2272,11 +2309,11 @@ contains
     end associate
 
 
-  end subroutine nf_get_scale_and_offset
+  end subroutine get_scale_and_offset
 
 !--------------------------------------------------------------------------------------------------
 
-  function nf_find_variable( this, sVariableName )    result( pNC_VAR )
+  function return_variable_pointer( this, sVariableName )    result( pNC_VAR )
 
     class (NETCDF4_FILE_T), intent(inout) :: this
     character (len=*), intent(in)        :: sVariableName
@@ -2306,11 +2343,11 @@ contains
       pNC_VAR => this%pNC_VAR(iIndex)
     endif
 
-  end function nf_find_variable
+  end function return_variable_pointer
   
 !--------------------------------------------------------------------------------------------------
 
-  function nf_return_index_double(rValues, rTargetValue)  result(iIndex)
+  function return_index_double(rValues, rTargetValue)  result(iIndex)
 
     real (kind=c_double), dimension(:) :: rValues
     real (kind=c_double) :: rTargetValue
@@ -2341,7 +2378,7 @@ contains
 
     enddo
 
-  end function nf_return_index_double
+  end function return_index_double
 
 !--------------------------------------------------------------------------------------------------
 

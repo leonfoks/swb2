@@ -602,20 +602,32 @@ function char_ptr_to_fortran_string( cpCharacterPtr )  result(sText)
   implicit none
 
   type(c_ptr) :: cpCharacterPtr
-  character(len=256) :: sText
+  character (len=:), allocatable :: sText  
+
+  ! [ LOCALS ]
+  character(len=1024) :: sBuf
   character (kind=c_char), pointer, dimension(:) :: fptr
   integer (kind=c_int) :: iCount
 
-    sText = repeat(" ", 256)
+  sBuf = ""
 
-    call c_f_pointer(cpCharacterPtr, fptr, [256])
-    iCount = 0
-    do
-      iCount = iCount + 1
-      if( index(string=fptr(iCount), substring=c_null_char ) /= 0) exit
-      sText(iCount:iCount) = fptr(iCount)
+  ! convert the C character pointer to a Fortran character pointer
+  call c_f_pointer(cpCharacterPtr, fptr, [1024])
 
-    enddo
+  iCount = 0
+
+  do
+  
+    iCount = iCount + 1
+  
+    ! exit if terminating c_null_char found
+    if( index(string=fptr(iCount), substring=c_null_char ) /= 0) exit
+  
+    sBuf(iCount:iCount) = fptr(iCount)
+
+  enddo
+
+  sText = sBuf(1:iCount-1)
 
 end function char_ptr_to_fortran_string
 
@@ -627,8 +639,8 @@ elemental function c_to_fortran_string( cCharacterString )  result(sText)
   implicit none
 
   character (len=*), intent(in) :: cCharacterString
-  character(len=256) :: sText
-  integer (kind=c_int) :: iIndex
+  character(len=:), allocatable :: sText
+  integer (kind=c_int)          :: iIndex
 
   sText = ""
 
@@ -636,11 +648,13 @@ elemental function c_to_fortran_string( cCharacterString )  result(sText)
 
   if(iIndex == 0) then
 
-    sText = trim(adjustl(cCharacterString))
+    ! return a trimmed and left-justified version of string 
+    sText = trim( adjustl( cCharacterString ) )
 
   else
 
-    sText = cCharacterString(1:iIndex-1)
+    ! lop off the trailing c_null_char at the end of string
+    sText = trim( adjustl( cCharacterString(1:iIndex-1) ) )
 
   endif
 
@@ -653,19 +667,29 @@ elemental function fortran_to_c_string( sText )  result(cCharacterString)
   use iso_c_binding
   implicit none
 
-  character (len=*), intent(in) :: sText
-  character(len=256) :: cCharacterString
-  integer (kind=c_int) :: iIndex
+  character (len=*), intent(in)    :: sText
+  character (len=:), allocatable   :: cCharacterString
 
-  iIndex = index(string=sText, substring=c_null_char)
+  ! [ LOCALS ]
+  integer (kind=c_int)             :: iIndex
 
-  if (iIndex == 0) then
+  iIndex = index( string=sText, substring=c_null_char )
+
+  if ( iIndex == 0 ) then
+
+    ! append the c_null_char to end of string
     cCharacterString = trim(sText)//c_null_char
+
   else
-    cCharacterString  = sText(1:iIndex)
+
+    ! c_null_char already present; just return a trimmed version
+    cCharacterString  = trim( sText )
+
   endif
 
 end function fortran_to_c_string
+
+!--------------------------------------------------------------------------------------------------
 
   !> Strip everything except numeric characters from a text string.
   !!
@@ -673,11 +697,10 @@ end function fortran_to_c_string
   !! @param[in] sTextIn
   elemental function keepnumeric(sText1)            result(sText)
 
-    ! ARGUMENTS
     character (len=*), intent(in)           :: sText1
     character (len=:), allocatable          :: sText
 
-    ! LOCALS
+    ! [ LOCALS ]
     character (len=:), allocatable :: sTemp
     character (len=512)            :: sBuf
     integer (kind=c_int)           :: iR                 ! Index in sRecord

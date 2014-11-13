@@ -27,6 +27,7 @@ if(TARGET__SWB_EXECUTABLE)
             meteorological_calculations.F90
             model_domain.F90
             #model.F90
+            netcdf4_hl.F90
             netcdf4_support.F90
             netcdf_c_api_interfaces.F90
             parameters.F90
@@ -241,6 +242,7 @@ if(TARGET__SWB_LIBRARY)
             meteorological_calculations.F90
             model_domain.F90
             #model.F90
+            netcdf4_hl.F90
             netcdf4_support.F90
             netcdf_c_api_interfaces.F90
             parameters.F90
