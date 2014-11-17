@@ -350,6 +350,7 @@ contains
 !--------------------------------------------------------------------------------------------------
 
   !> Iterate over all indices; return a delimited string comprised of the values.
+  
   function list_get_all_fn( this, sDelimiter )   result( sText )
 
     class (STRING_LIST_T), intent(inout)               :: this

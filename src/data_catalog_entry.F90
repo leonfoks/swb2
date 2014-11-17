@@ -14,6 +14,7 @@ module data_catalog_entry
   use strings
   use swb_grid
   use netcdf4_support
+  use netcdf4_hl
   use iso_c_binding
   implicit none
 

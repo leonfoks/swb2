@@ -297,7 +297,7 @@ subroutine nf_get_variable_array_as_vector_short( iNCID, iVariableID, iNC_Start,
   integer (kind=c_ptrdiff_t),intent(in)          :: iNC_Stride(:)
   integer (kind=c_short), intent(inout)          :: i2NC_Vars(:)
 
-  call nf_trap( nc_get_vars_short( ncid=this%iNCID,     &
+  call nf_trap( nc_get_vars_short( ncid=iNCID,          &
        varid=iVariableID,                               &
        startp=[iNC_Start],                              &
        countp=[iNC_Count],                              &
@@ -358,9 +358,9 @@ subroutine nf_get_variable_vector_int( iNCID, iVariableID, iNC_Start, iNC_Count,
   integer (kind=c_size_t), intent(in)            :: iNC_Start
   integer (kind=c_size_t), intent(in)            :: iNC_Count
   integer (kind=c_ptrdiff_t), intent(in)         :: iNC_Stride
-  integer (kind=c_int), intent(in)               :: iNC_Vars(:)
+  integer (kind=c_int), intent(inout)            :: iNC_Vars(:)
 
-  call nf_trap( nc_get_vars_int( ncid=this%iNCID,       &
+  call nf_trap( nc_get_vars_int( ncid=iNCID,            &
        varid=iVariableID,                               &
        startp=[iNC_Start],                              &
        countp=[iNC_Count],                              &
@@ -400,7 +400,7 @@ subroutine nf_get_variable_array_double( iNCID, iVariableID, iNC_Start, iNC_Coun
   integer (kind=c_size_t), intent(in)            :: iNC_Start(:)
   integer (kind=c_size_t), intent(in)            :: iNC_Count(:)
   integer (kind=c_size_t), intent(in)            :: iNC_Stride(:)
-  real (kind=c_double), intent(in)               :: dNC_Vars(:,:)
+  real (kind=c_double), intent(inout)            :: dNC_Vars(:,:)
 
   call nf_trap(nc_get_vars_double(ncid=iNCID,       &
        varid=iVariableID,                           &
@@ -444,7 +444,7 @@ subroutine nf_get_variable_vector_float( iNCID, iVariableID, iNC_Start, iNC_Coun
   integer (kind=c_ptrdiff_t), intent(in)         :: iNC_Stride
   real (kind=c_float), intent(inout)             :: fNC_Vars(:)
 
-  call nf_trap( nc_get_vars_float( ncid=this%iNCID,   &
+  call nf_trap( nc_get_vars_float( ncid=iNCID,        &
        varid=iVariableID,                             &
        startp=[iNC_Start],                            &
        countp=[iNC_Count],                            &
@@ -484,9 +484,9 @@ subroutine nf_get_variable_array_as_vector_float( iNCID, iVariableID, iNC_Start,
   integer (kind=c_size_t), intent(in)            :: iNC_Start(:)
   integer (kind=c_size_t), intent(in)            :: iNC_Count(:)
   integer (kind=c_ptrdiff_t), intent(in)         :: iNC_Stride(:)
-  real (kind=c_float), intent(inout)             :: rNC_Vars(:)
+  real (kind=c_float), intent(inout)             :: fNC_Vars(:)
 
-  call nf_trap( nc_get_vars_float( ncid=this%iNCID,   &
+  call nf_trap( nc_get_vars_float( ncid=iNCID,        &
        varid=iVariableID,                             &
        startp=[iNC_Start],                            &
        countp=[iNC_Count],                            &
@@ -501,7 +501,7 @@ end subroutine nf_get_variable_array_as_vector_float
 
 subroutine nf_create( iNCID, sFilename, iFileFormat, iLU )
 
-  integer (kind=c_int), intent(in)             :: iNCID
+  integer (kind=c_int), intent(inout)          :: iNCID
   character (len=*), intent(in)                :: sFilename
   integer (kind=c_int), intent(in)             :: iFileFormat
   integer (kind=c_int), intent(in), optional   :: iLU
@@ -531,7 +531,7 @@ subroutine nf_define_deflate(iNCID, iVariableID, iShuffle, iDeflate, iDeflate_le
   integer (kind=c_int), intent(in)      :: iDeflate
   integer (kind=c_int), intent(in)      :: iDeflate_level
 
-  call nf_trap(nc_def_var_deflate(ncid=this%iNCID,      &
+  call nf_trap(nc_def_var_deflate(ncid=iNCID,           &
           varid=iVariableID,                            &
           shuffle=iShuffle,                             &
           deflate=iDeflate,                             & 
@@ -542,13 +542,13 @@ end subroutine nf_define_deflate
 
 !--------------------------------------------------------------------------------------------------
 
-subroutine nf_enddef( iNCID )
+subroutine nf_end_definition_mode( iNCID )
 
   integer (kind=c_int), intent(in)             :: iNCID
 
-  call nf_trap(nc_enddef(ncid=iNCID), __FILE__, __LINE__ )
+  call nf_trap( nc_enddef( ncid=iNCID ), __FILE__, __LINE__ )
 
-end subroutine nf_enddef
+end subroutine nf_end_definition_mode
 
 !--------------------------------------------------------------------------------------------------
 
@@ -565,11 +565,11 @@ function nf_define_dimension( iNCID, sDimensionName, iDimensionSize )    result(
   ! need to convert size to c_size_t to make call to library
   iDimensionSize_ = int(iDimensionSize, kind=c_size_t)
 
-  call nf_trap(nc_def_dim(ncid=iNCID,                                  &
-                          name=trim(sDimensionName)//c_null_char,      &
-                          lenv=iDimensionSize_,                        &
-                          dimidp=iDimensionID),                        &
-                          __FILE__, __LINE__)
+  call nf_trap( nc_def_dim( ncid=iNCID,                                  &
+                            name=trim(sDimensionName)//c_null_char,      &
+                            lenv=iDimensionSize_,                        &
+                            dimidp=iDimensionID),                        &
+                            __FILE__, __LINE__)
 
 end function nf_define_dimension
 
@@ -585,13 +585,13 @@ function nf_define_variable( iNCID, sVariableName, iVariableType, &
   integer (kind=c_int), intent(in)      :: iDimensionIDs(:)
   integer (kind=c_int)                  :: iVariableID
 
-  call nf_trap( nc_def_var(ncid=iNCID,                                        &
-                           name=trim(fortran_to_c_string(sVariableName)),     &
-                           xtype=iVariableType,                               &
-                           ndims=iNumberOfDimensions,                         &
-                           dimidsp=iDimensionIDs,                             &
-                           varidp=iVariableID),                               &
-                           __FILE__, __LINE__)
+  call nf_trap( nc_def_var( ncid=iNCID,                                        &
+                            name=trim(fortran_to_c_string(sVariableName)),     &
+                            xtype=iVariableType,                               &
+                            ndims=iNumberOfDimensions,                         &
+                            dimidsp=iDimensionIDs,                             &
+                            varidp=iVariableID),                               &
+                            __FILE__, __LINE__)
 
 end function nf_define_variable
 
@@ -603,7 +603,7 @@ subroutine nf_put_attribute( iNCID, iVariableID, sAttributeName, &
   integer (kind=c_int), intent(in)                :: iNCID
   integer (kind=c_int), intent(in)                :: iVariableID
   character (len=*), intent(in)                   :: sAttributeName
-  type (STRING_LIST_T), intent(in), optional      :: slAttributeValues
+  type (STRING_LIST_T), intent(inout), optional   :: slAttributeValues
   integer (kind=c_int), intent(in), optional      :: iAttributeValues(:)
   real (kind=c_float), intent(in), optional       :: rAttributeValues(:)
   real (kind=c_double), intent(in), optional      :: dpAttributeValues(:)
@@ -619,47 +619,47 @@ subroutine nf_put_attribute( iNCID, iVariableID, sAttributeName, &
 
     iNumberOfAttributes = int(len_trim(sAttributeText), kind=c_size_t)
 
-    call nf_trap( nc_put_att_text(ncid=this%iNCID, &
-                    varid=iVariableID, &
-                    name=trim(sAttributeName), &
-                    nlen=iNumberOfAttributes, &
-                    tp=sAttributeText), &
+    call nf_trap( nc_put_att_text(ncid=iNCID,            &
+                    varid=iVariableID,                   &
+                    name=trim(sAttributeName),           &
+                    nlen=iNumberOfAttributes,            &
+                    tp=sAttributeText),                  &
                     __FILE__, __LINE__)
 
   elseif (present(iAttributeValues) ) then
 
     iNumberOfAttributes = size( iAttributeValues, 1)
 
-    call nf_trap( nc_put_att_int(ncid=this%iNCID, &
-                    varid=iVariableID, &
-                    name=trim(sAttributeName), &
-                    xtype=NC_INT, &
-                    nlen=iNumberOfAttributes, &
-                     ip=iAttributeValues), &
+    call nf_trap( nc_put_att_int(ncid=iNCID,             &
+                    varid=iVariableID,                   &
+                    name=trim(sAttributeName),           &
+                    xtype=NC_INT,                        &
+                    nlen=iNumberOfAttributes,            &
+                     ip=iAttributeValues),               &
                      __FILE__, __LINE__)
 
   elseif (present(rAttributeValues) ) then
 
     iNumberOfAttributes = size( rAttributeValues, 1)
 
-    call nf_trap( nc_put_att_float(ncid=this%iNCID, &
-                    varid=iVariableID, &
-                    name=trim(sAttributeName), &
-                    xtype=NC_FLOAT, &
-                    nlen=iNumberOfAttributes, &
-                    fp=rAttributeValues), &
+    call nf_trap( nc_put_att_float(ncid=iNCID,           &
+                    varid=iVariableID,                   &
+                    name=trim(sAttributeName),           &
+                    xtype=NC_FLOAT,                      & 
+                    nlen=iNumberOfAttributes,            &
+                    fp=rAttributeValues),                &
                     __FILE__, __LINE__)
 
   elseif (present(dpAttributeValues) ) then
 
     iNumberOfAttributes = size( dpAttributeValues, 1)
 
-    call nf_trap( nc_put_att_double(ncid=this%iNCID, &
-                       varid=iVariableID, &
-                       name=trim(sAttributeName), &
-                       xtype=NC_DOUBLE, &
-                       nlen=iNumberOfAttributes, &
-                       dp=dpAttributeValues), &
+    call nf_trap( nc_put_att_double(ncid=iNCID,          &
+                       varid=iVariableID,                &
+                       name=trim(sAttributeName),        &
+                       xtype=NC_DOUBLE,                  &
+                       nlen=iNumberOfAttributes,         &
+                       dp=dpAttributeValues),            &
                        __FILE__, __LINE__)
 
   endif
@@ -670,7 +670,7 @@ end subroutine nf_put_attribute
 !--------------------------------------------------------------------------------------------------
 
 subroutine nf_put_variable_array(iNCID, iVariableID, iStart, iCount, iStride, &
-   iValues, i2Values, rValues, dpValues)
+   iValues, i2Values, fValues, dValues)
 
   integer (kind=c_int), intent(in)               :: iNCID
   integer (kind=c_int), intent(in)               :: iVariableID
@@ -679,8 +679,8 @@ subroutine nf_put_variable_array(iNCID, iVariableID, iStart, iCount, iStride, &
   integer (kind=c_ptrdiff_t), intent(in)         :: iStride(:)
   integer (kind=c_int), intent(in), optional     :: iValues(:,:)
   integer (kind=c_short), intent(in), optional   :: i2Values(:,:)
-  real (kind=c_float), intent(in), optional      :: rValues(:,:)
-  real (kind=c_double), intent(it), optional     :: dValues(:,:)
+  real (kind=c_float), intent(in), optional      :: fValues(:,:)
+  real (kind=c_double), intent(in), optional     :: dValues(:,:)
 
   if (present(iValues) ) then
 
@@ -702,7 +702,7 @@ subroutine nf_put_variable_array(iNCID, iVariableID, iStart, iCount, iStride, &
                        vars=i2Values), &
                        __FILE__, __LINE__)
 
-  elseif (present(rValues) ) then
+  elseif (present(fValues) ) then
 
    call nf_trap(nc_put_vars_float(ncid=iNCID, &
                        varid=iVariableID, &
@@ -712,14 +712,14 @@ subroutine nf_put_variable_array(iNCID, iVariableID, iStart, iCount, iStride, &
                        vars=fValues), &
                        __FILE__, __LINE__)
 
-  elseif (present(dpValues) ) then
+  elseif (present(dValues) ) then
 
     call nf_trap(nc_put_vars_double(ncid=iNCID, &
                        varid=iVariableID, &
                        startp=iStart, &
                        countp=iCount, &
                        stridep=iStride, &
-                       vars=dp=Values), &
+                       vars=dValues), &
                        __FILE__, __LINE__)
 
   endif
@@ -766,7 +766,7 @@ subroutine nf_put_packed_variable_array(iNCID, iVariableID, iStart, iCount, iStr
                        vars=unpack(i2Values, lMask, i2Field)), &
                        __FILE__, __LINE__)
 
-  elseif (present(rValues) ) then
+  elseif (present(fValues) ) then
 
    call nf_trap(nc_put_vars_float(ncid=iNCID, &
                        varid=iVariableID, &
@@ -793,7 +793,7 @@ end subroutine nf_put_packed_variable_array
 !--------------------------------------------------------------------------------------------------
 
 subroutine nf_put_variable_vector(iNCID, iVariableID, iStart, iCount, iStride, &
-   iValues, i2Values, rValues, dValues)
+   iValues, i2Values, fValues, dValues)
 
   integer (kind=c_int), intent(in)                     :: iNCID
   integer (kind=c_int), intent(in)                     :: iVariableID
@@ -835,7 +835,7 @@ subroutine nf_put_variable_vector(iNCID, iVariableID, iStart, iCount, iStride, &
                        vars=fValues), &
                        __FILE__, __LINE__)
 
-  elseif ( present(dpValues) ) then
+  elseif ( present(dValues) ) then
 
     call nf_trap(nc_put_vars_double(ncid=iNCID, &
                        varid=iVariableID, &
