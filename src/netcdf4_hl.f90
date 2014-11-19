@@ -411,7 +411,7 @@ contains
                     iFileformat=NC_FORMAT_NETCDF4 )
 
     !> set standard dimensions (time, y, x) in data structure
-    call this%set_dimensions( iNX=iNumCols, iNY=iNumRows, lIncludeTime=lIncludeTimeDimension)
+    call this%set_dimensions( iNX=iNumCols, iNY=iNumRows, slDimensionOrder=slDimensionOrder )
 
     !> set variable values in the this struct
     call this%set_variables()
@@ -452,23 +452,29 @@ contains
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine set_dimensions(this, iNX, iNY, lIncludeTime)
+  subroutine set_dimensions(this, iNX, iNY, slDimensionOrder )
 
     class (NETCDF4_FILE_T ), intent(inout)          :: this
     integer (kind=c_int), intent(in)                :: iNX
     integer (kind=c_int), intent(in)                :: iNY
-    logical (kind=c_bool), intent(in)               :: lIncludeTime
+    type (STRING_LIST_T), intent(in)                :: slDimensionOrder
 
     ! [ LOCALS ]
-    integer (kind=c_int) :: iStat
-    integer (kind=c_int) :: iNumberOfDimensions
-    integer (kind=c_int) :: iIndex
+    integer (kind=c_int)              :: iStat
+    integer (kind=c_int)              :: iNumberOfDimensions
+    integer (kind=c_int)              :: iIndex
+    logical (kind=c_bool)             :: lIncludeTimeDimension
+    integer (kind=c_int), allocatable :: iWhich(:)
 
     iStat = 0
     iIndex = 0
 
+    ! search the given dimension orders for any mention of "t" (time) dimension 
+    iWhich = slDimensionOrder%which( "t" )
+    lIncludeTimeDimension = ubound(iWhich,1) > 1 .or. iWhich(1) /= 0
+
     iNumberOfDimensions = 2
-    if ( lIncludeTime ) iNumberOfDimensions = 3
+    if ( lIncludeTimeDimension ) iNumberOfDimensions = 3
 
     if (associated(this%pNC_DIM ) ) deallocate(this%pNC_DIM, stat=iStat)
     call assert(iStat == 0, "Could not deallocate memory for NC_DIM member in NC_FILE defined type", &
@@ -478,7 +484,7 @@ contains
     call assert(iStat == 0, "Could not allocate memory for NC_DIM member in NC_FILE defined type", &
       trim(__FILE__), __LINE__)
 
-    if ( lIncludeTime ) then
+    if ( lIncludeTimeDimension ) then
       !> define the time dimension;
       this%pNC_DIM( iIndex )%sDimensionName      = "time"
       this%pNC_DIM( iIndex )%iDimensionSize      = NC_UNLIMITED

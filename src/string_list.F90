@@ -12,7 +12,7 @@ module string_list
 
   public :: assignment(=)
   interface assignment(=)
-    
+
     module procedure :: assign_string_list_to_string_list_sub,   &
                         assign_int_to_string_sub,                &
                         assign_float_to_string_sub,              &
@@ -616,7 +616,7 @@ contains
       allocate(iResult(1), stat=iStat)
       if (iStat /= 0)   call die("Problem allocating memory", __FILE__, __LINE__)
 
-      iResult(1) = -9999
+      iResult(1) = 0
 
     else
     
