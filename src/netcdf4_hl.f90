@@ -3,6 +3,7 @@ module netcdf4_hl
   use constants_and_conversions
   use iso_c_binding
   use exceptions
+  use logfiles
   use swb_grid
   use netcdf4_support
   use strings
@@ -25,8 +26,8 @@ module netcdf4_hl
     type (STRING_LIST_T)                       :: slValues
     integer (kind=c_short), allocatable        :: i2Values(:)
     integer (kind=c_int), allocatable          :: iValues(:)
-    real (kind=c_float), allocatable           :: rValues(:)
-    real (kind=c_double), allocatable          :: dpValues(:)
+    real (kind=c_float), allocatable           :: fValues(:)
+    real (kind=c_double), allocatable          :: dValues(:)
     integer (kind=c_int)                       :: iAttributeType
     integer (kind=c_size_t)                    :: iAttributeSize
   end type NETCDF4_ATTRIBUTE_T
@@ -34,13 +35,12 @@ module netcdf4_hl
   type NETCDF4_VARIABLE_T
     character (len=64)                       :: sVariableName         = ""
     integer (kind=c_int)                     :: iVariableID           = NC_FILL_INT
-    integer (kind=c_int)                     :: iVariableType
+    integer (kind=c_int)                     :: iVariableType         = NC_FLOAT
     character (len=64)                       :: sVariableUnits        = "NA"
-    integer (kind=c_int)                     :: iNumberOfDimensions
+    character (len=4)                        :: sDimensions           = "tyx"
     integer (kind=c_int)                     :: iDimensionID(0:3)     = NC_FILL_INT
-    real (kind=c_double)                     :: rScaleFactor          = 1.0_c_double
-    real (kind=c_double)                     :: rAddOffset            = 0.0_c_double
-    integer (kind=c_int)                     :: iNumberOfAttributes
+    real (kind=c_double)                     :: dScaleFactor          = 1.0_c_double
+    real (kind=c_double)                     :: dAddOffset            = 0.0_c_double
     integer (kind=c_size_t)                  :: iStart                = 1_c_size_t
     integer (kind=c_size_t)                  :: iCount                = 1_c_size_t
     integer (kind=c_size_t)                  :: iStride               = 1_c_size_t
@@ -66,10 +66,10 @@ module netcdf4_hl
     integer (kind=c_size_t), dimension(0:1) :: iRowBounds
     integer (kind=c_int) :: iNX
     integer (kind=c_int) :: iNY
-    character (len=3) :: sVariableOrder = "tyx"
+    type (STRING_LIST_T)           :: slVariableNames
 
-    real (kind=c_double), dimension(0:1) :: rX
-    real (kind=c_double), dimension(0:1) :: rY
+    real (kind=c_double), dimension(0:1) :: dX
+    real (kind=c_double), dimension(0:1) :: dY
     logical (kind=c_bool) :: lX_IncreasesWithIndex = lTRUE
     logical (kind=c_bool) :: lY_IncreasesWithIndex = lFALSE
 
@@ -80,11 +80,11 @@ module netcdf4_hl
     logical (kind=c_bool)                :: lFlipHorizontal = lFALSE
     logical (kind=c_bool)                :: lFlipVertical = lFALSE
 
-    real (kind=c_double), allocatable    :: rX_Coords(:)
-    real (kind=c_double), allocatable    :: rY_Coords(:)
-    real (kind=c_double), allocatable    :: rDateTimeValues(:)
-    real (kind=c_double)                 :: rGridCellSizeX
-    real (kind=c_double)                 :: rGridCellSizeY
+    real (kind=c_double), allocatable    :: dX_Coords(:)
+    real (kind=c_double), allocatable    :: dY_Coords(:)
+    real (kind=c_double), allocatable    :: dDateTimeValues(:)
+    real (kind=c_double)                 :: dGridCellSizeX
+    real (kind=c_double)                 :: dGridCellSizeY
 
     type (NETCDF4_DIMENSION_T), pointer  :: pNC_DIM(:)      => null()
     type (NETCDF4_VARIABLE_T), pointer   :: pNC_VAR(:)      => null()
@@ -101,11 +101,11 @@ module netcdf4_hl
     type (NETCDF4_VARIABLE_T), pointer   :: pNC_VAR_LON     => null()      
     type (NETCDF4_VARIABLE_T), pointer   :: pNC_VAR_TIME    => null()
 
-    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_X       => null()
-    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_Y       => null()
-    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_LAT     => null()
-    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_LON     => null()      
-    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_TIME    => null()
+    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_X(:)       => null()
+    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_Y(:)       => null()
+    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_LAT(:)     => null()
+    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_LON(:)     => null()      
+    type (NETCDF4_ATTRIBUTE_T), pointer  :: pNC_ATT_TIME(:)    => null()
 
     type (NETCDF4_VARIABLE_T), pointer   :: pNC_VAR_VALUES(:)    => null()
 
@@ -114,23 +114,28 @@ module netcdf4_hl
     procedure :: date_within_range
     generic   :: is_date_valid => date_within_range
 
-    procedure :: deallocate_data_struct
-    generic   :: deallocate => deallocate_data_struct
+    procedure :: deallocate_data_structs
+    generic   :: deallocate => deallocate_data_structs
 
-    procedure :: nullify_data_struct
-    generic   :: nullify => nullify_data_struct
+    procedure :: nullify_data_structs
+    generic   :: nullify => nullify_data_structs
 
     procedure :: dump_cdl
 
-    procedure :: define_iteration_bounds
-    procedure :: define_start_count_stride
+    procedure :: calculate_time_range
+    procedure :: calculate_native_coord_bounds
 
     procedure :: get_time_units
     procedure :: get_time_values
 
-    procedure :: get_dimension_struct
-    procedure :: get_variable_struct
+    procedure :: get_dimensions
+    procedure :: get_variables
     procedure :: get_variable_units 
+    procedure :: get_attribute
+
+    procedure :: get_x_and_y
+    procedure :: get_scale_and_offset
+    procedure :: get_first_and_last
 
     procedure :: dimension_index_to_dimension_id
     procedure :: dimension_id_to_dimension_index
@@ -139,8 +144,9 @@ module netcdf4_hl
     procedure :: variable_index_to_variable_id
     procedure :: variable_id_to_variable_index
 
-    procedure :: return_dimension_index
-    procedure :: return_variable_index
+    procedure :: return_dimension_pointer
+    procedure :: return_variable_pointer
+    procedure :: return_attribute_pointer
 
     procedure :: index_to_dayvalue
     procedure :: dayvalue_to_julian_day
@@ -150,6 +156,18 @@ module netcdf4_hl
     procedure :: open_and_prepare_as_input
     procedure :: open_and_prepare_as_output
 
+    procedure :: set_dimensions
+    procedure :: set_variables
+    procedure :: set_attribute
+    procedure :: set_global_attributes
+
+    procedure :: put_dimensions
+    procedure :: put_variables
+    procedure :: put_attributes
+
+    procedure :: put_x_and_y
+    procedure :: put_lat_and_lon
+
     procedure :: set_flip_vertical
     procedure :: set_flip_horizontal
     procedure :: set_variable_order
@@ -157,6 +175,10 @@ module netcdf4_hl
     procedure :: set_y_variable_name
     procedure :: set_time_variable_name
     procedure :: set_value_variable_names
+    procedure :: set_start_count_stride
+    procedure :: set_iteration_bounds
+
+    procedure :: coord_to_col_row
 
   end type NETCDF4_FILE_T
 
@@ -191,7 +213,7 @@ contains
 !-------------------------------------------------------------------------------------------------
 
   subroutine open_and_prepare_as_input(this, sFilename,  lFlipHorizontal, lFlipVertical, &
-    sVariableOrder, sVarName_x, sVarName_y, sVarName_values, sVarName_time, &
+    sVariableOrder, sVariableName_x, sVariableName_y, slVariableNames, sVariableName_time, &
     tGridBounds, iLU)
 
     class (NETCDF4_FILE_T ), intent(inout)         :: this
@@ -199,10 +221,10 @@ contains
     logical (kind=c_bool), intent(in)              :: lFlipHorizontal
     logical (kind=c_bool), intent(in)              :: lFlipVertical
     character (len=*), intent(in)                  :: sVariableOrder    
-    character (len=*), intent(in)                  :: sVarName_x    
-    character (len=*), intent(in)                  :: sVarName_y   
-    type (STRING_LIST_T), intent(in)               :: slVarName_values    
-    character (len=*), intent(in)                  :: sVarName_time   
+    character (len=*), intent(in)                  :: sVariableName_x    
+    character (len=*), intent(in)                  :: sVariableName_y   
+    type (STRING_LIST_T), intent(in)               :: slVariableNames    
+    character (len=*), intent(in)                  :: sVariableName_time   
     type (GRID_BOUNDS_T), intent(in), optional     :: tGridBounds
     integer (kind=c_int), intent(in), optional     :: iLU
 
@@ -218,25 +240,28 @@ contains
 
     call nf_open_file( iNCID=this%iNCID, sFilename=sFilename, iFileformat=NC_FORMAT_NETCDF4 )
 
-    call this%get_dimension_struct()
-    call this%get_variable_struct()
+    call this%deallocate_data_structs()
+
+    call this%get_dimensions()
+    call this%get_variables()
 
     !> obtain pointers to x, y, and time variable structures
-    this%pNC_VAR_X => this%return_variable_pointer( sVarName_x )
-    this%pNC_VAR_Y => this%return_variable_pointer( sVarName_y )
-    this%pNC_VAR_TIME => this%return_variable_pointer( sVarName_time )
+    this%pNC_VAR_X => this%return_variable_pointer( sVariableName_x )
+    this%pNC_VAR_Y => this%return_variable_pointer( sVariableName_y )
+    this%pNC_VAR_TIME => this%return_variable_pointer( sVariableName_time )
 
     !> obtain pointers to the value(s) structures
-    iCount = slVarName_values%count
-    allocate ( pNC_VAR_VALUES( iCount ), stat=iStat)
+    iCount = slVariableNames%count
+
+    allocate ( this%pNC_VAR_VALUES( iCount ), stat=iStat)
     call assert( iStat==0, "Problem allocating memory", __FILE__, __LINE__ )
 
-    do iIndex=lbound( pNC_VAR_VALUES, 1), ubound( pNC_VAR_VALUES, 1) 
+    do iIndex=lbound( this%pNC_VAR_VALUES, 1), ubound( this%pNC_VAR_VALUES, 1) 
 
-      pNC_VAR_VALUES( iIndex ) => this%return_variable_pointer( slVarName_values%get( iIndex ) )
+      this%pNC_VAR_VALUES( iIndex ) => this%return_variable_pointer( slVariableNames%get( iIndex ) )
 
       !> establish scale_factor and add_offset values, if present
-      call this%get_scale_and_offset( pNC_VAR_VALUES( iIndex ) )
+      call this%get_scale_and_offset( this%pNC_VAR_VALUES( iIndex ) )
 
     enddo
 
@@ -248,10 +273,10 @@ contains
       if ( lFileOpen )  call this%dump_cdl( iLU )
     endif
 
-    this%dpFirstAndLastTimeValues = this%get_first_and_last( pNC_VAR_TIME )
+    this%dpFirstAndLastTimeValues = this%get_first_and_last( this%pNC_VAR_TIME )
 
     call this%get_time_units()
-    call this%get_xyz_units()
+    call this%get_variable_units()
 
     call this%calculate_time_range()
 
@@ -259,7 +284,7 @@ contains
     call this%get_x_and_y()
 
     !> retrieve the time values as included in the NetCDF file
-    call this%get_time_vals()
+    call this%get_time_values()
 
     if (present(tGridBounds) ) then
 
@@ -274,17 +299,6 @@ contains
       iColRow_ul = this%coord_to_col_row( dX=tGridBounds%dXul, dY=tGridBounds%dYul )
 
       iColRow_ur = this%coord_to_col_row( dX=tGridBounds%dXur, dY=tGridBounds%dYur)
-
-  #ifdef DEBUG_PRINT
-      write(*, fmt="(a,a,i6)") "Find correspondence between project bounds (in native projection) and row, col of dataset |", &
-        trim(__FILE__), __LINE__
-      write(*, fmt="(a)") "      column     row              X              Y"
-      write(*, fmt="(a,i6,i6,a,f14.3,f14.3)") "LL: ", iColRow_ll(COLUMN), iColRow_ll(ROW), " <==> ", tGridBounds%rXll, tGridBounds%rYll
-      write(*, fmt="(a,i6,i6,a,f14.3,f14.3)") "LR: ", iColRow_lr(COLUMN), iColRow_lr(ROW), " <==> ", tGridBounds%rXlr, tGridBounds%rYlr
-      write(*, fmt="(a,i6,i6,a,f14.3,f14.3)") "UL: ", iColRow_ul(COLUMN), iColRow_ul(ROW), " <==> ", tGridBounds%rXul, tGridBounds%rYul
-      write(*, fmt="(a,i6,i6,a,f14.3,f14.3)") "UR: ", iColRow_ur(COLUMN), iColRow_ur(ROW), " <==> ", tGridBounds%rXur, tGridBounds%rYur
-  #endif
-
 
       !> the following is an attempt to provide a small buffer surrounding the area of interest (AOI).
       !! currently, a buffer of 4 cells is placed around the AOI.
@@ -328,20 +342,20 @@ contains
     !> now that we have (possibly) created a subset, need to get the
     !> **NATIVE** coordinate bounds so that the intermediate grid file
     !> can be created
-    call this%return_native_coord_bounds()
+    call this%calculate_native_coord_bounds()
 
   end subroutine open_and_prepare_as_input
 
   !----------------------------------------------------------------------
 
   !> Open a NetCDF file for output
-  subroutine open_and_prepare_as_output(this, iOriginMonth, iOriginDay,   &
-     iOriginYear, iStartYear, iEndYear,                                   &
-     slVariableNames, slVariableUnits, iVariableTypes,                    & 
-     iNumberOfDimensions, lIncludeTimeDimension,                          &
+
+  subroutine open_and_prepare_as_output(this, iOriginMonth, iOriginDay,      &
+     iOriginYear, iStartYear, iEndYear,                                      &
+     slVariableNames, slVariableUnits, iVariableTypes, slDimensionOrder,     & 
      dX, dY)
 
-    type (NETCDF4_FILE_T )                     :: this
+    class (NETCDF4_FILE_T )                     :: this
     integer (kind=c_int), intent(in)           :: iOriginMonth
     integer (kind=c_int), intent(in)           :: iOriginDay
     integer (kind=c_int), intent(in)           :: iOriginYear
@@ -349,8 +363,8 @@ contains
     integer (kind=c_int), intent(in)           :: iEndYear
     type (STRING_LIST_T), intent(in)           :: slVariableNames
     type (STRING_LIST_T), intent(in)           :: slVariableUnits 
-    integer (kind=c_int), intent(in)           :: iVariableTypes(:)    
-    logical (kind=c_bool), intent(in)          :: lIncludeTimeDimension 
+    integer (kind=c_int), intent(in)           :: iVariableTypes(:)  
+    type (STRING_LIST_T), intent(in)           :: slDimensionOrder  
     real (kind=c_double), intent(in), optional :: dX(:,:)
     real (kind=c_double), intent(in), optional :: dY(:,:)
     
@@ -382,9 +396,10 @@ contains
     dX_vec = this%dX_Coords(iMinCol:iMaxCol)
     dY_vec = this%dY_Coords(iMinRow:iMaxRow)
 
-    this%slVarName_values = slVariableNames
+    this%slVariableNames = slVariableNames
+
     ! retreive a list of variable names separated by underscore 
-    sBuf = this%slVarName_values%cat("_")
+    sBuf = this%slVariableNames%cat("_")
 
     sFilename = trim( sBuf )//"_"//trim(asCharacter(iStartYear)) &
       //"_"//trim(asCharacter(iEndYear))//"__"                                &
@@ -396,43 +411,50 @@ contains
                     iFileformat=NC_FORMAT_NETCDF4 )
 
     !> set standard dimensions (time, y, x) in data structure
-    call this%set_standard_dimensions( iNX=iNumCols, iNY=iNumRows, lIncludeTime=lIncludeTimeDimension)
+    call this%set_dimensions( iNX=iNumCols, iNY=iNumRows, lIncludeTime=lIncludeTimeDimension)
 
     !> set variable values in the this struct
     call this%set_variables()
 
     !> transfer variable values to NetCDF file
-    call this%set_variables()
+    call this%put_variables()
 
-    call this%set_standard_attributes( sOriginText=sOriginText)
+    call this%set_attributes( sOriginText=sOriginText )
 
-    call this%set_global_attributes( &
-       sDataType=trim(this%sVarName(NC_Z)), &
+    call this%set_global_attributes(      &
+       slDataTypes=slVariableNames,       &
        sSourceFile=trim(this%sFilename))
 
     call this%put_attributes()
 
-    !> enable a low level of data compression for the
-    !> variable of interest
-    call this%define_deflate(iNCID=this_ARCHIVE%iNCID, &
-       iVarID=this_ARCHIVE%iVarID(NC_Z), &
-       iShuffle=NC_SHUFFLE_YES, &
-       iDeflate=NC_DEFLATE_YES, &
-       iDeflate_level=2 )
+
+     do iIndex=1, this%slVariableNames%count
+
+      pNC_VAR => this%return_variable_pointer( sVariableName=slVariableNames%get(iIndex) )
+
+      !> enable a low level of data compression for the
+      !> variable of interest
+      call nf_define_deflate(iNCID=this%iNCID,           &
+         iVarID=pNC_VAR%iVariableID,                     &
+         iShuffle=NC_SHUFFLE_YES,                        &
+         iDeflate=NC_DEFLATE_YES,                        &
+         iDeflate_level=2 )
+
+    enddo  
 
     call nf_end_definitions_mode( iNCID=this%iNCID )
 
-    call this%put_x_and_y(this=this_ARCHIVE, &
-         dpX=this%rX_Coords(iMinCol:iMaxCol), &
-         dpY=this%rY_Coords(iMinRow:iMaxRow) )
+    call this%put_x_and_y(this=this%iNCID,      &
+         dpX=this%dX_Coords(iMinCol:iMaxCol),   &
+         dpY=this%dY_Coords(iMinRow:iMaxRow) )
 
   end subroutine open_and_prepare_as_output  
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine set_standard_dimensions(this, iNX, iNY, lIncludeTime)
+  subroutine set_dimensions(this, iNX, iNY, lIncludeTime)
 
-    class (T_NETCDF4_FILE ), intent(inout)          :: this
+    class (NETCDF4_FILE_T ), intent(inout)          :: this
     integer (kind=c_int), intent(in)                :: iNX
     integer (kind=c_int), intent(in)                :: iNY
     logical (kind=c_bool), intent(in)               :: lIncludeTime
@@ -458,70 +480,59 @@ contains
 
     if ( lIncludeTime ) then
       !> define the time dimension;
-      this%pNC_DIM( iIndex )%sDimensionName = "time"
-      this%pNC_DIM( iIndex )%iNC_DimSize    = NC_UNLIMITED
+      this%pNC_DIM( iIndex )%sDimensionName      = "time"
+      this%pNC_DIM( iIndex )%iDimensionSize      = NC_UNLIMITED
+      this%pNC_DIM_TIME => this%pNC_DIM( iIndex )
       iIndex = iIndex + 1
     endif
 
     !> define the y dimension;
-    this%pNC_DIM( iIndex )%sDimensionName  = "y"
-    this%pNC_DIM( iIndex )%iNC_DimSize     = iNY
+    this%pNC_DIM( iIndex )%sDimensionName        = "y"
+    this%pNC_DIM( iIndex )%iDimensionSize        = iNY
+    this%pNC_DIM_Y => this%pNC_DIM( iIndex )
     iIndex = iIndex + 1
 
     !> define the x dimension;
-    this%pNC_DIM( iIndex )%sDimensionName = "x"
-    this%pNC_DIM( iIndex )%iNC_DimSize    = iNX
+    this%pNC_DIM( iIndex )%sDimensionName       = "x"
+    this%pNC_DIM( iIndex )%iDimensionSize       = iNX
+    this%pNC_DIM_X => this%pNC_DIM( iIndex )
 
-  end subroutine set_standard_dimensions
+
+  end subroutine set_dimensions
 
 !--------------------------------------------------------------------------------------------------
 
-  subroutine set_variables(NCFILE, slVariableNames, iVariableTypes )
+  subroutine set_variables(this, slVariableNames, iVariableTypes, slDimensions )
 
-  type (T_NETCDF4_FILE ) :: NCFILE
-  character (len=*) :: sVarName_z
-
+  class (NETCDF4_FILE_T), intent(inout)            :: this
+  type (STRING_LIST_T), intent(in)                 :: slVariableNames
+  integer (kind=c_int), intent(in)                 :: iVariableTypes
+  type (STRING_LIST_T), intent(in)                 :: slDimensions
+ 
   ! [ LOCALS ]
   integer (kind=c_int) :: iStat
+  integer (kind=c_int) :: iIndex
+  integer (kind=c_int) :: iNumberOfVariables
 
   iStat = 0
 
-  NCFILE%iNumberOfVariables = 4
+  iNumberOfVariables = slVariableNames%count
 
-  if (associated(NCFILE%pNC_VAR) ) deallocate(NCFILE%pNC_VAR, stat=iStat)
+  if (associated( this%pNC_VAR) ) deallocate( this%pNC_VAR, stat=iStat)
   call assert(iStat == 0, "Could not deallocate memory for NC_VAR member in NC_FILE defined type", &
     trim(__FILE__), __LINE__)
 
-  allocate(NCFILE%pNC_VAR( 0 : NCFILE%iNumberOfVariables-1), stat=iStat )
+  allocate( this%pNC_VAR( 0 : iNumberOfVariables-1), stat=iStat )
   call assert(iStat == 0, "Could not allocate memory for NC_VAR member in NC_FILE defined type", &
     trim(__FILE__), __LINE__)
 
-  NCFILE%pNC_VAR(NC_TIME)%sVariableName = "time"
-  NCFILE%pNC_VAR(NC_TIME)%iNC_VarType = NC_DOUBLE
-  NCFILE%pNC_VAR(NC_TIME)%iNumberOfDimensions = 1
-  NCFILE%pNC_VAR(NC_TIME)%iNC_DimID(0) = NCFILE%pNC_DIM(NC_TIME)%iNC_DimID
+  do iIndex=lbound( this%pNC_VAR, 1),ubound( this%pNC_VAR, 1)
+    this%pNC_VAR( iIndex )%sVariableName = slVariableNames%get( iIndex )
+    this%pNC_VAR( iIndex )%iVariableType = iVariableTypes( iIndex )
+    this%pNC_VAR( iIndex )%sDimensions = slDimensions%get( iIndex )
+  enddo 
 
-  NCFILE%pNC_VAR(NC_Y)%sVariableName = "y"
-  NCFILE%pNC_VAR(NC_Y)%iNC_VarType = NC_DOUBLE
-  NCFILE%pNC_VAR(NC_Y)% iNumberOfDimensions = 1
-  NCFILE%pNC_VAR(NC_Y)%iNC_DimID = NCFILE%pNC_DIM(NC_Y)%iNC_DimID
-
-  NCFILE%pNC_VAR(NC_X)%sVariableName = "x"
-  NCFILE%pNC_VAR(NC_X)%iNC_VarType = NC_DOUBLE
-  NCFILE%pNC_VAR(NC_X)% iNumberOfDimensions = 1
-  NCFILE%pNC_VAR(NC_X)%iNC_DimID = NCFILE%pNC_DIM(NC_X)%iNC_DimID
-
-  NCFILE%pNC_VAR(NC_Z)%sVariableName = trim(sVarName_z)
-  NCFILE%pNC_VAR(NC_Z)%iNC_VarType = NC_FLOAT
-  NCFILE%pNC_VAR(NC_Z)%iNumberOfDimensions = 3
-  NCFILE%pNC_VAR(NC_Z)%iNC_DimID = [NCFILE%pNC_DIM(NC_TIME)%iNC_DimID, &
-                                 NCFILE%pNC_DIM(NC_Y)%iNC_DimID, &
-                                 NCFILE%pNC_DIM(NC_X)%iNC_DimID,0]
-
-  NCFILE%sVarName(NC_Z) = trim(sVarName_z)
-
-end subroutine nf_set_variables
-
+end subroutine set_variables
 
 !--------------------------------------------------------------------------------------------------
 
@@ -553,60 +564,59 @@ end subroutine nf_set_variables
 
 !--------------------------------------------------------------------------------------------------
 
-!> This was so clear the other day. Basically, I think we need
-!> two functions to convert from index to timeval, and timeval to JD;
+!> We have two functions to convert from index to timeval, and timeval to JD;
 !> note that timeval refers to the number of days from the origin
 !> of the NetCDF file
 
 !> return the day value (number of days since origin
 
-  function julian_day_to_index(this, rJulianDay)  result (iIndex)
+  function julian_day_to_index(this, dJulianDay)  result (iIndex)
 
     class (NETCDF4_FILE_T )             :: this
-    real (kind=c_double), intent(in)    :: rJulianDay
+    real (kind=c_double), intent(in)    :: dJulianDay
     integer (kind=c_int)                :: iIndex
 
-    iIndex = aint(rJulianDay) - this%iFirstDayJD
+    iIndex = aint(dJulianDay) - this%iFirstDayJD
 
   end function julian_day_to_index
 
 !--------------------------------------------------------------------------------------------------
 
-  function index_to_dayvalue(this, iIndex)   result(rDayValue)
+  function index_to_dayvalue(this, iIndex)   result(dDayValue)
 
     class (NETCDF4_FILE_T )             :: this
     integer (kind=c_int), intent(in)    :: iIndex
-    real (kind=c_double)                :: rDayValue
+    real (kind=c_double)                :: dDayValue
 
-    if (iIndex < lbound(this%rDateTimeValues, 1) .or. iIndex > ubound(this%rDateTimeValues, 1) ) &
+    if (iIndex < lbound(this%dDateTimeValues, 1) .or. iIndex > ubound(this%dDateTimeValues, 1) ) &
       call die( "Dimension out of bounds", trim(__FILE__), __LINE__)
     
-    rDayValue = this%rDateTimeValues(iIndex)
+    rDayValue = this%dDateTimeValues(iIndex)
 
   end function index_to_dayvalue
 
 !--------------------------------------------------------------------------------------------------
 
-  function dayvalue_to_julian_day(this, rDayValue)   result(rJulianDay)
+  function dayvalue_to_julian_day(this, dDayValue)   result(dJulianDay)
 
     class (NETCDF4_FILE_T )             :: this
-    real (kind=c_double), intent(in)    :: rDayValue
-    real (kind=c_double)                :: rJulianDay
+    real (kind=c_double), intent(in)    :: dDayValue
+    real (kind=c_double)                :: dJulianDay
 
-    rJulianDahly = real(this%iOriginJD, kind=c_double) &
-      + real(this%iOriginHH, kind=c_double) / 24_c_double &
-      + real(this%iOriginMM, kind=c_double) / 1440_c_double &
-      + real(this%iOriginSS, kind=c_double) / 86400_c_double &
+    rJulianDay = real(this%iOriginJD, kind=c_double)           &
+      + real(this%iOriginHH, kind=c_double) / 24_c_double      &
+      + real(this%iOriginMM, kind=c_double) / 1440_c_double    &
+      + real(this%iOriginSS, kind=c_double) / 86400_c_double   &
       + rDayValue
 
   end function dayvalue_to_julian_day
 
 !--------------------------------------------------------------------------------------------------
 
-  function julian_day_to_index_adj( this, rJulianDay )  result(iStart)
+  function julian_day_to_index_adj( this, dJulianDay )  result(iStart)
 
     class (NETCDF4_FILE_T )             :: this
-    real (kind=c_double), intent(in)    :: rJulianDay
+    real (kind=c_double), intent(in)    :: dJulianDay
     integer (kind=c_size_t)             :: iStart
 
     ! [ LOCALS ]
@@ -614,7 +624,7 @@ end subroutine nf_set_variables
     integer (kind=c_int)   :: iCandidateIndex, iLastCandidate
     integer (kind=c_int)   :: iInitialCandidateIndex
     integer (kind=c_int)   :: iTestIndex
-    real (kind=c_double)   :: rTestJD
+    real (kind=c_double)   :: dTestJD
     integer (kind=c_int)   :: iIndexLower, iIndexUpper, iIndex
     logical (kind=c_bool)  :: lChanged
 
@@ -622,7 +632,7 @@ end subroutine nf_set_variables
     iMinDiff = iBIGVAL
     !> First guess at what the appropriate index value should be.
     !> Current JD minus the Origin JD is a good guess.
-    iCandidateIndex = nf_julian_day_to_index(this, rJulianDay)
+    iCandidateIndex = nf_julian_day_to_index(this, dJulianDay)
 
     call assert(iCandidateIndex >=0, "Problem finding the index number of the time " &
       //"variable in NetCDF file "//dquote(this%sFilename), trim(__FILE__), __LINE__)
@@ -632,17 +642,17 @@ end subroutine nf_set_variables
     do
 
       !> calculate the range of *INDEX* values to search over
-      iIndexLower = max( lbound(this%rDateTimeValues, 1), iCandidateIndex - 1)
-      iIndexUpper = min( ubound(this%rDateTimeValues, 1), iCandidateIndex + 1)
+      iIndexLower = max( lbound(this%dDateTimeValues, 1), iCandidateIndex - 1)
+      iIndexUpper = min( ubound(this%dDateTimeValues, 1), iCandidateIndex + 1)
 
       lChanged = lFALSE
 
       do iIndex=iIndexLower,iIndexUpper
 
-        rTestJD = nf_dayvalue_to_julian_day(this=this, &
-            rDayValue=this%rDateTimeValues(iIndex))
+        dTestJD = nf_dayvalue_to_julian_day(this=this, &
+            dDayValue=this%dDateTimeValues(iIndex))
 
-        iTestIndex = aint(rTestJD) - this%iFirstDayJD
+        iTestIndex = aint(dTestJD) - this%iFirstDayJD
         iDiff = abs(iTestIndex - iInitialCandidateIndex)
 
         if (iDiff < iMinDiff ) then
@@ -986,39 +996,39 @@ end subroutine nf_set_variables
 
 !--------------------------------------------------------------------------------------------------
 
-  function coord_to_col_row(this, rX, rY)   result(iColRow)
+  function coord_to_col_row(this, dX, dY)   result(iColRow)
 
     class (NETCDF4_FILE_T ), intent(inout)         :: this
-    real (kind=c_double), intent(in)               :: rX
-    real (kind=c_double), intent(in)               :: rY
+    real (kind=c_double), intent(in)               :: dX
+    real (kind=c_double), intent(in)               :: dY
     integer (kind=c_size_t)                        :: iColRow(2)
 
 
     ! [ LOCALS ]
     integer (kind=c_int) :: iColNum, iRowNum
 
-    if (rX < minval(this%rX_Coords) ) &
-      call die( "X coordinate value "//asCharacter(rX)//" is less than the minimum X coordinate " &
-        //"value ("//asCharacter(minval(this%rX_Coords))//") contained in the NetCDF file " &
+    if (rX < minval(this%dX_Coords) ) &
+      call die( "X coordinate value "//asCharacter(dX)//" is less than the minimum X coordinate " &
+        //"value ("//asCharacter(minval(this%dX_Coords))//") contained in the NetCDF file " &
         //dquote(this%sFilename) )
 
-    if (rX > maxval(this%rX_Coords) ) &
-      call die( "X coordinate value "//asCharacter(rX)//" is greater than the maximum X coordinate " &
-        //"value ("//asCharacter(minval(this%rX_Coords))//") contained in the NetCDF file " &
+    if (rX > maxval(this%dX_Coords) ) &
+      call die( "X coordinate value "//asCharacter(dX)//" is greater than the maximum X coordinate " &
+        //"value ("//asCharacter(minval(this%dX_Coords))//") contained in the NetCDF file " &
         //dquote(this%sFilename) )
 
-    if (rY < minval(this%rY_Coords) ) &
-      call die( "Y coordinate value "//asCharacter(rY)//" is less than the minimum Y coordinate " &
-        //"value ("//asCharacter(minval(this%rY_Coords))//") contained in the NetCDF file " &
+    if (rY < minval(this%dY_Coords) ) &
+      call die( "Y coordinate value "//asCharacter(dY)//" is less than the minimum Y coordinate " &
+        //"value ("//asCharacter(minval(this%dY_Coords))//") contained in the NetCDF file " &
         //dquote(this%sFilename) )
 
-    if (rY > maxval(this%rY_Coords) ) &
-      call die( "Y coordinate value "//asCharacter(rY)//" is greater than the maximum Y coordinate " &
-        //"value ("//asCharacter(minval(this%rY_Coords))//") contained in the NetCDF file " &
+    if (rY > maxval(this%dY_Coords) ) &
+      call die( "Y coordinate value "//asCharacter(dY)//" is greater than the maximum Y coordinate " &
+        //"value ("//asCharacter(minval(this%dY_Coords))//") contained in the NetCDF file " &
         //dquote(this%sFilename) )
 
-    iColNum = nf_return_index_double(this%rX_Coords, rX)
-    iRowNum = nf_return_index_double(this%rY_Coords, rY)
+    iColNum = nf_return_index_double(this%dX_Coords, dX)
+    iRowNum = nf_return_index_double(this%dY_Coords, dY)
 
     iColRow(COLUMN) = iColNum
     iColRow(ROW) = iRowNum
@@ -1038,6 +1048,9 @@ end subroutine nf_set_variables
     real (kind=c_double), dimension(:), allocatable :: rX, rY
 
     iLength = int(size(dpX, 1), kind=c_size_t)
+
+    call assert( associated( pNC_VAR_X ) .and. associated( pNC_VAR_Y ), &
+      "INTERNAL PROGRAMMING ERROR--attempted use of null pointer", __FILE__, __LINE__ )
 
     call nf_put_variable_vector(this=this%iNCID, &
                      iVariableID=this%pNC_VAR_X%iVariableID, &
@@ -1071,6 +1084,9 @@ end subroutine nf_set_variables
     iNX = int( size(dLat, 2), kind=c_size_t)
     iNY = int( size(dLat, 1), kind=c_size_t)
 
+    call assert( associated( pNC_VAR_LAT ) .and. associated( pNC_VAR_LON ), &
+      "INTERNAL PROGRAMMING ERROR--attempted use of null pointer", __FILE__, __LINE__ )
+
     call nf_put_variable_array(this=this%iNCID, &
                      iVariableID=this%pNC_VAR_LAT%iVariableID, &
                      iStart=[0_c_size_t, 0_c_size_t], &
@@ -1099,26 +1115,26 @@ end subroutine nf_set_variables
     real (kind=c_double) :: rYmin, rYmax
 
     !> find the (x,y) associated with the column and row number bounds
-    rXmin = minval(this%rX_Coords(this%iColBounds(NC_LEFT):this%iColBounds(NC_RIGHT)) )
-    rXmax = maxval(this%rX_Coords(this%iColBounds(NC_LEFT):this%iColBounds(NC_RIGHT)) )
-    rYmin = minval(this%rY_Coords(this%iRowBounds(NC_TOP):this%iRowBounds(NC_BOTTOM)) )
-    rYmax = maxval(this%rY_Coords(this%iRowBounds(NC_TOP):this%iRowBounds(NC_BOTTOM)) )
+    rXmin = minval(this%dX_Coords(this%iColBounds(NC_LEFT):this%iColBounds(NC_RIGHT)) )
+    rXmax = maxval(this%dX_Coords(this%iColBounds(NC_LEFT):this%iColBounds(NC_RIGHT)) )
+    rYmin = minval(this%dY_Coords(this%iRowBounds(NC_TOP):this%iRowBounds(NC_BOTTOM)) )
+    rYmax = maxval(this%dY_Coords(this%iRowBounds(NC_TOP):this%iRowBounds(NC_BOTTOM)) )
 
-    this%rX(NC_LEFT) = rXmin - this%rGridCellSizeX * 0.5_c_double
-    this%rX(NC_RIGHT) = rXmax + this%rGridCellSizeX * 0.5_c_double
-    this%rY(NC_TOP) = rYmax + this%rGridCellSizeY * 0.5_c_double
-    this%rY(NC_BOTTOM) = rYmin - this%rGridCellSizeY * 0.5_c_double
+    this%dX(NC_LEFT) = rXmin - this%dGridCellSizeX * 0.5_c_double
+    this%dX(NC_RIGHT) = rXmax + this%dGridCellSizeX * 0.5_c_double
+    this%dY(NC_TOP) = rYmax + this%dGridCellSizeY * 0.5_c_double
+    this%dY(NC_BOTTOM) = rYmin - this%dGridCellSizeY * 0.5_c_double
 
   !#ifdef DEBUG_PRINT
     print *, "Filename: ", this%sFilename
-    print *, "Grid cell size (X): ", this%rGridCellSizeX
-    print *, "Grid cell size (Y): ", this%rGridCellSizeY
+    print *, "Grid cell size (X): ", this%dGridCellSizeX
+    print *, "Grid cell size (Y): ", this%dGridCellSizeY
 
     print *, "Bounds of data subset area, in native coordinates"
-    print *, "X (left): ", this%rX(NC_LEFT)
-    print *, "X (right): ", this%rX(NC_RIGHT)
-    print *, "Y (top): ", this%rY(NC_TOP)
-    print *, "Y (bottom): ", this%rY(NC_BOTTOM)
+    print *, "X (left): ", this%dX(NC_LEFT)
+    print *, "X (right): ", this%dX(NC_RIGHT)
+    print *, "Y (top): ", this%dY(NC_TOP)
+    print *, "Y (bottom): ", this%dY(NC_BOTTOM)
   !#endif
 
   end subroutine calculate_native_coord_bounds
@@ -1142,11 +1158,11 @@ end subroutine nf_set_variables
 
     iStat = 0
 
-    if (allocated(this%rDateTimeValues) ) deallocate(this%rDateTimeValues, stat=iStat)
+    if (allocated(this%dDateTimeValues) ) deallocate(this%dDateTimeValues, stat=iStat)
     call assert(iStat==0, "Failed to deallocate memory for time values", &
       trim(__FILE__), __LINE__)
 
-    allocate( this%rDateTimeValues(0 : this%pNC_DIM_TIME%iDimensionSize-1 ), stat=iStat )
+    allocate( this%dDateTimeValues(0 : this%pNC_DIM_TIME%iDimensionSize-1 ), stat=iStat )
     call assert(iStat==0, "Failed to allocate memory for time values", &
       trim(__FILE__), __LINE__)
 
@@ -1157,7 +1173,7 @@ end subroutine nf_set_variables
          iNC_Start=0_c_size_t,                             &
          iNC_Count=this%pNC_DIM_TIME%iDimensionSize,       &
          iNC_Stride=1_c_size_t,                            &
-         dNC_Vars=this%rDateTimeValues)
+         dNC_Vars=this%dDateTimeValues)
 
   end subroutine get_time_values
 
@@ -1186,19 +1202,21 @@ end subroutine nf_set_variables
     call assert( associated( this%pNC_VAR_Y ), "INTERNAL PROGRAMMING ERROR--attempted use of null pointer", &
       __FILE__, __LINE__ )
 
-    call assert( this%pNC_VAR_X%iNumberOfDimensions == 1, &
+    call assert( len_trim(this%pNC_VAR_X%sDimensions) == 1, &
       "Dimensions other than one for the x-coordinate variable are currently unsupported.", &
       __FILE__, __LINE__ )
 
-    call assert( this%pNC_VAR_Y%iNumberOfDimensions == 1, &
+    call assert( len_trim(this%pNC_VAR_Y%sDimensions) == 1, &
       "Dimensions other than one for the y-coordinate variable are currently unsupported.", &
       __FILE__, __LINE__ )
 
-    allocate( this%rX_Coords( this%pNC_DIM_X%iDimensionSize ), stat=iStat )
+    !> @todo Add code to allow for 2D X and Y variables to be read from NetCDF
+
+    allocate( this%dX_Coords( 1 ), stat=iStat )
     call assert(iStat==0, "Failed to allocate memory for X-coordinate values", &
       __FILE__, __LINE__ )
 
-    allocate (this%rY_Coords( this%pNC_DIM_Y%iDimensionSize  ), stat=iStat )
+    allocate (this%dY_Coords( 1 ), stat=iStat )
     call assert(iStat==0, "Failed to allocate memory for Y-coordinate values", &
       __FILE__, __LINE__ )
 
@@ -1207,28 +1225,28 @@ end subroutine nf_set_variables
          iNC_Start=0_c_size_t, &
          iNC_Count=this%pNC_DIM_X%iDimensionSize, &
          iNC_Stride=1_c_size_t, &
-         dNC_Vars=this%rX_Coords)
+         dNC_Vars=this%dX_Coords)
 
     call nf_get_variable_vector_double(this=this, &
          iVariableID=this%pNC_VAR_Y%iVariableID, &
          iNC_Start=0_c_size_t, &
          iNC_Count=this%pNC_DIM_Y%iDimensionSize, &
          iNC_Stride=1_c_size_t, &
-         dNC_Vars=this%rY_Coords)
+         dNC_Vars=this%dY_Coords)
 
-    iLowerBound = lbound(this%rX_Coords, 1)
-    iUpperBound = ubound(this%rX_Coords, 1)
+    iLowerBound = lbound(this%dX_Coords, 1)
+    iUpperBound = ubound(this%dX_Coords, 1)
 
-    if (this%rX_Coords(iUpperBound) > this%rX_Coords(iLowerBound) ) then
+    if (this%dX_Coords(iUpperBound) > this%dX_Coords(iLowerBound) ) then
       this%lX_IncreasesWithIndex = lTRUE
     else
       this%lX_IncreasesWithIndex = lFALSE
     endif
 
-    iLowerBound = lbound(this%rY_Coords, 1)
-    iUpperBound = ubound(this%rY_Coords, 1)
+    iLowerBound = lbound(this%dY_Coords, 1)
+    iUpperBound = ubound(this%dY_Coords, 1)
 
-    if (this%rY_Coords(iUpperBound) > this%rY_Coords(iLowerBound) ) then
+    if (this%dY_Coords(iUpperBound) > this%dY_Coords(iLowerBound) ) then
       this%lY_IncreasesWithIndex = lTRUE
     else
       this%lY_IncreasesWithIndex = lFALSE
@@ -1240,12 +1258,12 @@ end subroutine nf_set_variables
     call assert(this%pNC_DIM_Y%iDimensionSize > 2, "INTERNAL PROGRAMMING ERROR--" &
       //"NetCDF Y dimension size must be greater than 2.", trim(__FILE__), __LINE__)
 
-    this%rGridCellSizeX = ( maxval(this%rX_Coords) &
-                                  - minval(this%rX_Coords) ) &
+    this%dGridCellSizeX = ( maxval(this%dX_Coords) &
+                                  - minval(this%dX_Coords) ) &
                                   / real (this%pNC_DIM_X%iDimensionSize - 1, kind=c_double)
 
-    this%rGridCellSizeY = ( maxval(this%rY_Coords) &
-                                  - minval(this%rY_Coords) ) &
+    this%dGridCellSizeY = ( maxval(this%dY_Coords) &
+                                  - minval(this%dY_Coords) ) &
                                   / real (this%pNC_DIM_Y%iDimensionSize - 1, kind=c_double)
 
   end subroutine get_x_and_y
@@ -1274,24 +1292,28 @@ end subroutine nf_set_variables
     type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
     integer (kind=c_int) :: iIndex
 
-    do iIndex=0, ubound(this%pNC_VAR,1)
+    if (associated( this%pNC_VAR) ) then
 
-      pNC_VAR => this%pNC_VAR(iIndex)
+      do iIndex=lbound( this%pNC_VAR, 1),ubound( this%pNC_VAR, 1)
 
-      if ( pNC_VAR%iNumberOfAttributes == 0 ) cycle
+        pNC_VAR => this%pNC_VAR(iIndex)
 
-      if (associated( pNC_VAR%pNC_ATT ))  deallocate( pNC_VAR%pNC_ATT )
-      pNC_VAR%pNC_ATT => null()
+        if ( pNC_VAR%iNumberOfAttributes == 0 ) cycle
 
-    enddo
+        if (associated( pNC_VAR%pNC_ATT ))  deallocate( pNC_VAR%pNC_ATT )
+        pNC_VAR%pNC_ATT => null()
 
-    if (associated( this%pNC_VAR ))  deallocate( this%pNC_VAR )
-    if (associated( this%pNC_ATT ))  deallocate( this%pNC_ATT )
-    if (associated( this%pNC_DIM ))  deallocate( this%pNC_DIM )
+      enddo
 
-    this%pNC_VAR => null()
-    this%pNC_ATT => null()
-    this%pNC_DIM => null()
+      if (associated( this%pNC_VAR ))  deallocate( this%pNC_VAR )
+      if (associated( this%pNC_ATT ))  deallocate( this%pNC_ATT )
+      if (associated( this%pNC_DIM ))  deallocate( this%pNC_DIM )
+
+      this%pNC_VAR => null()
+      this%pNC_ATT => null()
+      this%pNC_DIM => null()
+
+    endif
 
   end subroutine deallocate_data_structs
 
@@ -1558,7 +1580,7 @@ end subroutine nf_set_variables
 
       case (NC_FLOAT)
 
-        allocate(pNC_ATT%rValues(0:iLength-1), stat=iStat )
+        allocate(pNC_ATT%fValues(0:iLength-1), stat=iStat )
         call assert(iStat==0, "INTERNAL PROGRAMMING ERROR--problem allocating memory", &
           trim(__FILE__), __LINE__)
 
@@ -1566,25 +1588,25 @@ end subroutine nf_set_variables
         call nf_trap( nc_get_att_float(ncid=this%iNCID, &
           varid=iVariableID, &
           name=sAttributeName, &
-          ip=pNC_ATT%rValues), __FILE__, __LINE__ )
+          ip=pNC_ATT%fValues), __FILE__, __LINE__ )
 
-        do iIndex=0, ubound(pNC_ATT%rValues,1)
-          call pNC_ATT%slValues%append( pNC_ATT%rValues(iIndex) )
+        do iIndex=0, ubound(pNC_ATT%fValues,1)
+          call pNC_ATT%slValues%append( pNC_ATT%fValues(iIndex) )
         enddo
 
       case (NC_DOUBLE)
 
-        allocate(pNC_ATT%dpValues(0:iLength-1), stat=iStat )
+        allocate(pNC_ATT%dValues(0:iLength-1), stat=iStat )
         call assert(iStat==0, "INTERNAL PROGRAMMING ERROR--problem allocating memory", &
           trim(__FILE__), __LINE__)
 
         call nf_trap( nc_get_att_double(ncid=this%iNCID, &
           varid=iVariableID, &
           name=sAttributeName, &
-          ip=pNC_ATT%dpValues), __FILE__, __LINE__ )
+          ip=pNC_ATT%dValues), __FILE__, __LINE__ )
 
-        do iIndex=lbound(pNC_ATT%dpValues,1), ubound(pNC_ATT%dpValues,1)
-          call pNC_ATT%slValues%append( pNC_ATT%dpValues(iIndex) )
+        do iIndex=lbound(pNC_ATT%dValues,1), ubound(pNC_ATT%dValues,1)
+          call pNC_ATT%slValues%append( pNC_ATT%dValues(iIndex) )
         enddo
 
       case default
@@ -1648,7 +1670,7 @@ end subroutine nf_set_variables
 
             case (NC_DOUBLE)
 
-              if (.not. allocated(pNC_ATT%dpValues) ) &
+              if (.not. allocated(pNC_ATT%dValues) ) &
                 call die("INTERNAL PROGRAMMING ERROR--attempt to use unallocated variable; " &
                 //"attribute name: "//dquote(pNC_ATT%sAttributeName), &
                 trim(__FILE__), __LINE__)
@@ -1656,7 +1678,7 @@ end subroutine nf_set_variables
               call nf_put_attribute(this=this, &
                   iVariableID=pNC_VAR%iVariableID, &
                   sAttributeName=trim(pNC_ATT%sAttributeName)//c_null_char, &
-                  dpAttributeValues=pNC_ATT%dpValues)
+                  dpAttributeValues=pNC_ATT%dValues)
 
             case (NC_INT)
 
@@ -1672,7 +1694,7 @@ end subroutine nf_set_variables
 
             case (NC_FLOAT)
 
-              if (.not. allocated(pNC_ATT%rValues) ) &
+              if (.not. allocated(pNC_ATT%fValues) ) &
                 call die("INTERNAL PROGRAMMING ERROR--attempt to use unallocated variable; " &
                 //"attribute name: "//dquote(pNC_ATT%sAttributeName), &
                 trim(__FILE__), __LINE__)
@@ -1680,7 +1702,7 @@ end subroutine nf_set_variables
               call nf_put_attribute(this=this, &
                   iVariableID=pNC_VAR%iVariableID, &
                   sAttributeName=trim(pNC_ATT%sAttributeName)//c_null_char, &
-                  rAttributeValues=pNC_ATT%rValues)
+                  rAttributeValues=pNC_ATT%fValues)
 
             case (NC_CHAR)
 
@@ -1707,7 +1729,7 @@ end subroutine nf_set_variables
           call nf_put_attribute(this=this, &
               iVariableID=NC_GLOBAL, &
               sAttributeName=trim(pNC_ATT%sAttributeName)//c_null_char, &
-              dpAttributeValues=pNC_ATT%dpValues )
+              dpAttributeValues=pNC_ATT%dValues )
 
         case (NC_INT)
 
@@ -1746,12 +1768,15 @@ end subroutine nf_set_variables
     integer (kind=c_int) :: iIndex
     type (NETCDF4_DIMENSION_T), pointer :: pNC_DIM
 
+    call assert( associated( this%pNC_DIM), "INTERNAL PROGRAMMING ERROR--attempted use of null pointer", &
+      __FILE__, __LINE__ )  
+
     do iIndex = lbound( this%pNC_DIM, 1 ), ubound( this%pNC_DIM, 1 )
 
       pNC_DIM => this%pNC_DIM( iIndex )
 
       call nf_trap( nc_def_dim( ncid=this%iNCID,                       &
-             name=fortran_to_c_string( pNC_DIM%sDimensionName ) ),     &
+             name=fortran_to_c_string( pNC_DIM%sDimensionName ),       &
              lenv=pNC_DIM%iDimensionSize,                              &
              dimidp=pNC_DIM%iDimensionID),                             &
              __FILE__, __LINE__ )
@@ -1907,9 +1932,9 @@ end subroutine nf_set_variables
                 count_y => this%pNC_VAR_Y%iCount, count_val => pNC_VAR%iCount,                &
                 stride_time => this%pNC_VAR_TIME%iStride, stride_x => this%pNC_VAR_X%iStride, &
                 stride_y => this%pNC_VAR_Y%iStride, stride_val => pNC_VAR%iStride,            &
-                varid => pNC_VAR%iVariableID                                       )
+                varid => pNC_VAR%iVariableID, dim_order => pNC_VAR%sDimensionOrder                                       )
 
-      select case (this%sVariableOrder)
+      select case ( dim_order )
 
         case ("txy")    ! time, col, row
 
@@ -2145,7 +2170,7 @@ end subroutine nf_set_variables
 
   function get_first_and_last(this, pNC_VAR)  result(dpValues)
 
-    type (NETCDF4_FILE_T )             :: this 
+    class (NETCDF4_FILE_T )             :: this 
     type (NETCDF4_VARIABLE_T), pointer :: pNC_VAR
     real (kind=c_double), dimension(0:1) :: dpValues
 
@@ -2232,8 +2257,7 @@ end subroutine nf_set_variables
 
     class (NETCDF4_FILE_T), intent(inout) :: this
 
-    this%iOriginJD = julian_day(this%iOriginYear, &
-      this%iOriginMonth, this%iOriginDay)
+    this%iOriginJD = julian_day(this%iOriginYear, this%iOriginMonth, this%iOriginDay)
 
     this%iFirstDayJD = this%iOriginJD + this%dpFirstAndLastTimeValues(NC_FIRST)
     this%iLastDayJD = this%iOriginJD + this%dpFirstAndLastTimeValues(NC_LAST)
@@ -2372,7 +2396,7 @@ end subroutine nf_set_variables
 
       if (lFound) then
         sBuf = trim( var%pNC_ATT(iIndex)%slValues%get(1) )
-        read(sBuf,*) var%rScaleFactor
+        read(sBuf,*) var%dScaleFactor
       endif
 
       !> Now repeat the process for "add_offset" attribute
@@ -2390,7 +2414,7 @@ end subroutine nf_set_variables
 
       if (lFound) then
         sBuf = trim(var%pNC_ATT(iIndex)%slValues%get(1) )
-        read(sBuf,*) var%rAddOffset
+        read(sBuf,*) var%dAddOffset
       endif
 
     end associate
@@ -2529,33 +2553,36 @@ end subroutine nf_set_variables
   
 !--------------------------------------------------------------------------------------------------
 
-  function return_index_double(rValues, rTargetValue)  result(iIndex)
+  function return_index_double(dValues, dTargetValue)  result(iIndex)
 
-    real (kind=c_double), dimension(:) :: rValues
-    real (kind=c_double) :: rTargetValue
-    integer (kind=c_int) :: iIndex
+    real (kind=c_double), dimension(:)       :: dValues
+    real (kind=c_double)                     :: dTargetValue
+    integer (kind=c_int)                     :: iIndex
 
     ! [ LOCALS ]
-    integer (kind=c_int) :: iCount
-    real (kind=c_double) :: rDiff, rDiffMin
+    integer (kind=c_int)      :: iCount
+    real (kind=c_double)      :: dDiff, dDiffMin
 
-    if ( .not. (rTargetValue >= minval(rValues) .and. rTargetValue <= maxval(rValues)) ) then
-      call LOGS%write("rTargetValue (" &
-      //asCharacter(rTargetValue)//") is not within the range " &
-      //asCharacter(minval(rValues))//" to "//asCharacter(maxval(rValues)), lEcho=lTRUE )
+    if ( .not. (dTargetValue >= minval(dValues) .and. dTargetValue <= maxval(dValues) ) ) then
+
+      call LOGS%write("crap")
+
+      call LOGS%write("dTargetValue ("//asCharacter(dTargetValue)//") is not within the range "    &
+      //asCharacter(minval(dValues))//" to "//asCharacter(maxval(dValues) ), lEcho=lTRUE )
 
       call assert(lFALSE, "INTERNAL PROGRAMMING ERROR", trim(__FILE__), __LINE__)
+    
     endif
 
     rDiffMin = 1.e+20
 
-    do iCount=lbound(rValues,1), ubound(rValues,1)
+    do iCount=lbound(dValues,1), ubound(dValues,1)
 
-      rDiff = abs(rValues(iCount) - rTargetValue)
+      dDiff = abs(dValues(iCount) - dTargetValue)
 
-      if ( rDiff < rDiffMin ) then
+      if ( dDiff < dDiffMin ) then
         iIndex = iCount
-        rDiffMin =rDiff
+        dDiffMin = dDiff
       endif
 
     enddo

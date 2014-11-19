@@ -70,10 +70,10 @@ module swb_grid
 
 
   type, public :: GRID_BOUNDS_T
-    real (kind=c_double) :: rXll, rYll
-    real (kind=c_double) :: rXul, rYul
-    real (kind=c_double) :: rXlr, rYlr
-    real (kind=c_double) :: rXur, rYur
+    real (kind=c_double) :: dXll, dYll
+    real (kind=c_double) :: dXul, dYul
+    real (kind=c_double) :: dXlr, dYlr
+    real (kind=c_double) :: dXur, dYur
     character (len=256) :: sPROJ4_string
   end type GRID_BOUNDS_T
 

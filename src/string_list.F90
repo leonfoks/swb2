@@ -12,11 +12,13 @@ module string_list
 
   public :: assignment(=)
   interface assignment(=)
-    module procedure :: assign_string_list_to_string_list_sub, &
-                        assign_int_to_string_sub, &
-                        assign_float_to_string_sub, &
-                        assign_double_to_string_sub, &
-                        assign_char_to_string_sub
+    
+    module procedure :: assign_string_list_to_string_list_sub,   &
+                        assign_int_to_string_sub,                &
+                        assign_float_to_string_sub,              &
+                        assign_double_to_string_sub,             &
+                        assign_char_to_string_sub,               &
+                        assign_char_array_to_string_sub
 
   end interface assignment(=)
     
@@ -148,6 +150,26 @@ contains
     if ( len_trim( sText ) > 0 )  call list_append_string_sub(this, sText)
 
   end subroutine assign_char_to_string_sub
+
+!--------------------------------------------------------------------------------------------------
+
+  subroutine assign_char_array_to_string_sub( this, sText )
+
+    class (STRING_LIST_T), intent(inout)   :: this
+    character (len=*), intent(in)          :: sText(:)
+
+    ! [ LOCALS ]
+    integer (kind=c_int)   :: iIndex
+
+    call list_items_deallocate_all_sub(this)
+
+    do iIndex = lbound(sText,1), ubound(sText, 1)   
+
+      if ( len_trim( sText( iIndex ) ) > 0 )  call list_append_string_sub(this, sText( iIndex ) )
+
+    enddo
+
+  end subroutine assign_char_array_to_string_sub
 
 !--------------------------------------------------------------------------------------------------
 
