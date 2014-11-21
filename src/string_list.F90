@@ -53,7 +53,7 @@ module string_list
     procedure :: list_print_sub
     procedure :: list_return_position_of_matching_string_fn
     procedure :: list_return_count_of_matching_string_fn
-    procedure :: list_items_deallocate_all_sub
+!    procedure :: list_items_deallocate_all_sub
     procedure :: list_return_all_as_float_fn
     procedure :: list_return_all_as_int_fn
     procedure :: list_subset_partial_matches_fn
@@ -72,9 +72,11 @@ module string_list
     generic :: grep          => list_subset_partial_matches_fn
     generic :: which         => list_return_position_of_matching_string_fn
     generic :: countMatching => list_return_count_of_matching_string_fn
-    generic :: deallocate    => list_items_deallocate_all_sub
+!    generic :: deallocate    => list_items_deallocate_all_sub
     generic :: asFloat       => list_return_all_as_float_fn
     generic :: asInt         => list_return_all_as_int_fn
+
+    final :: list_items_deallocate_all_sub
 
   end type STRING_LIST_T
 
@@ -669,7 +671,7 @@ contains
 
   subroutine list_items_deallocate_all_sub(this)
 
-    class (STRING_LIST_T), intent(inout) :: this
+    type (STRING_LIST_T), intent(inout) :: this
     
     ! [ LOCALS ]
     type (STRING_LIST_ELEMENT_T), pointer :: current => null()

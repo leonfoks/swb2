@@ -158,7 +158,7 @@ module netcdf4_hl
 
     procedure :: set_dimensions
     procedure :: set_variables
-    procedure :: set_attribute
+    procedure :: set_attributes
     procedure :: set_global_attributes
 
     procedure :: put_dimensions
@@ -391,8 +391,8 @@ contains
     iNumRows = iMaxRow - iMinRow + 1
     iNumCols = iMaxCol - iMinCol + 1
 
-    allocate(dX_vec(iNumCols))
-    allocate(dY_vec(iNumRows))
+    allocate( dX_vec(iNumCols) )
+    allocate( dY_vec(iNumRows) )
     dX_vec = this%dX_Coords(iMinCol:iMaxCol)
     dY_vec = this%dY_Coords(iMinRow:iMaxRow)
 
@@ -419,7 +419,9 @@ contains
     !> transfer variable values to NetCDF file
     call this%put_variables()
 
-    call this%set_attributes( sOriginText=sOriginText )
+        
+
+    call this%set_attributes( slAttributeNames, slAttributeValues, iAttributeTypes )
 
     call this%set_global_attributes(      &
        slDataTypes=slVariableNames,       &
@@ -539,6 +541,156 @@ contains
   enddo 
 
 end subroutine set_variables
+
+!--------------------------------------------------------------------------------------------------
+
+subroutine set_attributes(this, slAttributeNames, slAttributeValues, iAttributeTypes)
+
+  class (T_NETCDF4_FILE ), intent(inout)   :: this
+  type (STRING_LIST_T), intent(in)         :: slAttributeNames(:)
+  type (STRING_LIST_T), intent(in)         :: slAttributeValues(:)
+  integer (kind=c_int), intent(in)         :: iAttributeTypes(:)
+
+  ! [ LOCALS ]
+  integer (kind=c_int)                              :: iStat
+  integer (kind=c_int)                              :: iIndex
+  integer (kind=c_int)                              :: iNumAttributes
+  type (NETCDF4_VARIABLE_T), pointer                :: pNC_VAR => null()
+  type (NETCDF4_ATTRIBUTE_T), dimension(:), pointer :: pNC_ATT => null()
+
+  
+  do iIndex=1, slVariableNames%count
+
+    pNC_VAR => this%return_variable_pointer( slVariableNames%get( iIndex ) )
+
+    if ( .not. associated( pNC_VAR ) ) &
+      call die( "INTERNAL PROGRAMMING ERROR--attempted use of null pointer associated with variable name " &
+        //dquote(slVariableNames%get( iIndex) ), __FILE__, __LINE__ )
+
+    iNumAttributes = slVarNames
+  allocate( this%pNC_VAR_TIME%pNC_ATT(0:iNumAttributes-1), stat=iStat)
+  call assert(iStat == 0, "Could not allocate memory for NC_ATT member in NC_VAR struct of NC_FILE", &
+    trim(__FILE__), __LINE__)
+
+  pNC_ATT => this%pNC_VAR_TIME%pNC_ATT
+
+  block
+
+    pNC_ATT(0)%sAttributeName = "units"
+    allocate(pNC_ATT(0)%sAttValue(0:0))
+    pNC_ATT(0)%sAttValue(0) = "days since "//trim(sOriginText)//" 00:00:00"
+    pNC_ATT(0)%iNC_AttType = NC_CHAR
+    pNC_ATT(0)%iNC_AttSize = 1_c_size_t
+
+    pNC_ATT(1)%sAttributeName = "calendar"
+    allocate(pNC_ATT(1)%sAttValue(0:0))
+    pNC_ATT(1)%sAttValue(0) = "proleptic_gregorian"
+    ! pNC_ATT(1)%sAttValue(0) = "standard"
+    pNC_ATT(1)%iNC_AttType = NC_CHAR
+    pNC_ATT(1)%iNC_AttSize = 1_c_size_t
+
+    pNC_ATT(2)%sAttributeName = "long_name"
+    allocate(pNC_ATT(2)%sAttValue(0:0))
+    pNC_ATT(2)%sAttValue(0) = "time"
+    pNC_ATT(2)%iNC_AttType = NC_CHAR
+    pNC_ATT(2)%iNC_AttSize = 1_c_size_t
+
+
+  end block
+
+  allocate( NCFILE%pNC_VAR(NC_Z)%pNC_ATT(0:iNumAttributes-1), stat=iStat)
+  call assert(iStat == 0, "Could not allocate memory for NC_ATT member in NC_VAR struct of NC_FILE", &
+    trim(__FILE__), __LINE__)
+  NCFILE%pNC_VAR(NC_Z)%iNumberOfAttributes = iNumAttributes
+
+  pNC_ATT => NCFILE%pNC_VAR(NC_Z)%pNC_ATT
+
+  block
+
+    pNC_ATT(0)%sAttributeName = "units"
+    allocate(pNC_ATT(0)%sAttValue(0:0))
+    pNC_ATT(0)%sAttValue(0) = NCFILE%sVarUnits(NC_Z)
+    pNC_ATT(0)%iNC_AttType = NC_CHAR
+    pNC_ATT(0)%iNC_AttSize = 1_c_size_t
+
+    pNC_ATT(1)%sAttributeName = "calendar"
+    allocate(pNC_ATT(1)%sAttValue(0:0))
+    pNC_ATT(1)%sAttValue(0) = "standard"
+    pNC_ATT(1)%iNC_AttType = NC_CHAR
+    pNC_ATT(1)%iNC_AttSize = 1_c_size_t
+
+    pNC_ATT(2)%sAttributeName = "long_name"
+    allocate(pNC_ATT(2)%sAttValue(0:0))
+    pNC_ATT(2)%sAttValue(0) = "time"
+    pNC_ATT(2)%iNC_AttType = NC_CHAR
+    pNC_ATT(2)%iNC_AttSize = 1_c_size_t
+
+
+  end block
+
+
+  allocate( NCFILE%pNC_VAR(NC_Y)%pNC_ATT(0:iNumAttributes-1), stat=iStat)
+  call assert(iStat == 0, "Could not allocate memory for NC_ATT member in NC_VAR struct of NC_FILE", &
+    trim(__FILE__), __LINE__)
+  NCFILE%pNC_VAR(NC_Y)%iNumberOfAttributes = iNumAttributes
+
+  pNC_ATT => NCFILE%pNC_VAR(NC_Y)%pNC_ATT
+
+  block
+
+    pNC_ATT(0)%sAttributeName = "units"
+    allocate(pNC_ATT(0)%sAttValue(0:0))
+    pNC_ATT(0)%sAttValue(0) = NCFILE%sVarUnits(NC_Y)
+    pNC_ATT(0)%iNC_AttType = NC_CHAR
+    pNC_ATT(0)%iNC_AttSize = 1_c_size_t
+
+    pNC_ATT(1)%sAttributeName = "long_name"
+    allocate(pNC_ATT(1)%sAttValue(0:0))
+    pNC_ATT(1)%sAttValue(0) = "y coordinate of projection"
+    pNC_ATT(1)%iNC_AttType = NC_CHAR
+    pNC_ATT(1)%iNC_AttSize = 1_c_size_t
+
+    pNC_ATT(2)%sAttributeName = "standard_name"
+    allocate(pNC_ATT(2)%sAttValue(0:0))
+    pNC_ATT(2)%sAttValue(0) = "projection_y_coordinate"
+    pNC_ATT(2)%iNC_AttType = NC_CHAR
+    pNC_ATT(2)%iNC_AttSize = 1_c_size_t
+
+
+  end block
+
+  allocate( NCFILE%pNC_VAR(NC_X)%pNC_ATT(0:iNumAttributes-1), stat=iStat)
+  call assert(iStat == 0, "Could not allocate memory for NC_ATT member in NC_VAR struct of NC_FILE", &
+    trim(__FILE__), __LINE__)
+  NCFILE%pNC_VAR(NC_X)%iNumberOfAttributes = iNumAttributes
+
+  pNC_ATT => NCFILE%pNC_VAR(NC_X)%pNC_ATT
+
+  block
+
+    pNC_ATT(0)%sAttributeName = "units"
+    allocate(pNC_ATT(0)%sAttValue(0:0))
+    pNC_ATT(0)%sAttValue(0) = NCFILE%sVarUnits(NC_X)
+    pNC_ATT(0)%iNC_AttType = NC_CHAR
+    pNC_ATT(0)%iNC_AttSize = 1_c_size_t
+
+    pNC_ATT(1)%sAttributeName = "long_name"
+    allocate(pNC_ATT(1)%sAttValue(0:0))
+    pNC_ATT(1)%sAttValue(0) = "x coordinate of projection"
+    pNC_ATT(1)%iNC_AttType = NC_CHAR
+    pNC_ATT(1)%iNC_AttSize = 1_c_size_t
+
+    pNC_ATT(2)%sAttributeName = "standard_name"
+    allocate(pNC_ATT(2)%sAttValue(0:0))
+    pNC_ATT(2)%sAttValue(0) = "projection_x_coordinate"
+    pNC_ATT(2)%iNC_AttType = NC_CHAR
+    pNC_ATT(2)%iNC_AttSize = 1_c_size_t
+
+  end block
+
+
+
+end subroutine set_attributes
 
 !--------------------------------------------------------------------------------------------------
 
