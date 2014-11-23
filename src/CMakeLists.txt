@@ -28,6 +28,8 @@ if(TARGET__SWB_EXECUTABLE)
             model_domain.F90
             #model.F90
             netcdf4_hl.F90
+            netcdf4_attributes.F90
+            netcdf4_attribute_collection.F90
             netcdf4_support.F90
             netcdf_c_api_interfaces.F90
             parameters.F90
