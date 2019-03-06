@@ -8,7 +8,9 @@ rmdir /S /Q Debug
 rmdir /S /Q Testing
 rmdir /S /Q Release
 rmdir /S /Q tests
+rmdir /S /Q test
 rmdir /S /Q .vs
+del /S /Q ..\..\..\src\generated\*.F90
 del /S /Q *.txt
 del /S /Q *.sln
 del /S /Q *.vcxproj*
@@ -47,8 +49,9 @@ set BUILD_TYPE="Debug"
 set SYSTEM_TYPE="win_x64"
 
 :: define platform and compiler specific compilation flags
-set CMAKE_Fortran_FLAGS_DEBUG="/Od /fpp /MTd /debug:full /check:all /traceback"
-set CMAKE_Fortran_FLAGS_RELEASE="/O2 /QxHost /MT /fpp /traceback"
+::set CMAKE_Fortran_FLAGS_DEBUG="/Od /fpp /MTd /debug:full /check:all /standard-realloc-lhs /traceback /heap-arrays"
+set CMAKE_Fortran_FLAGS_DEBUG="/Od /fpp:"/macro_expand=cpp" /standard-semantics /debug:full /check:all /standard-realloc-lhs /traceback /heap-arrays"
+set CMAKE_Fortran_FLAGS_RELEASE="/O2 /QxHost /MT /fpp:"/macro_expand=cpp" /standard-semantics /traceback /standard-realloc-lhs /heap-arrays"
 set CMAKE_C_FLAGS_DEBUG="/Od /MTd /debug:full"
 set CMAKE_C_FLAGS_RELEASE="/O2 /QxHost /MT"
 ::set CMAKE_EXE_LINKER_FLAGS='/NODEFAULTLIB:"LIBCMT"'

@@ -516,7 +516,7 @@ program swbstats2
 
   endif
 
-  if (options%report_in_meters) then
+  if (options%report_in_meters .or. options%report_as_volume) then
 
     ! set unit conversions needed to obtain output units of "meters"
     if (options%netcdf_variable_units_string .containssimilar. "inch") then
@@ -532,6 +532,9 @@ program swbstats2
       //" be converted to units of 'meters'.")
     endif
 
+    options%output_conversion_factor = options%unit_conversion_factor
+
+    if (.not. options%report_as_volume)                                         &
     options%filename_modifier_string = trim(options%filename_modifier_string)   &
                                        //"__meters"
 
@@ -554,13 +557,16 @@ program swbstats2
                                            * options%length_conversion_factor)**2
       options%output_conversion_factor = options%grid_cell_area_sq_meters           &
                                            * options%unit_conversion_factor
-    else
-      options%output_conversion_factor = options%unit_conversion_factor
     endif
 
     options%filename_modifier_string = trim(options%filename_modifier_string)   &
                                        //"__cubic_meters"
+  endif
 
+  if (.not. (options%report_as_volume .or. options%report_in_meters)) then
+
+    options%filename_modifier_string = trim(options%filename_modifier_string)        &
+                                       //trim(options%netcdf_variable_units_string)
   endif
 
   call assert(.not. (options%report_as_volume .and. options%report_in_meters),  &
@@ -902,11 +908,10 @@ contains
 
     ! [ LOCALS ]
     character (len=:), allocatable    :: filename
-    integer (c_int)              :: nx, ny
+    integer (c_int)                   :: nx, ny
     type (GENERAL_GRID_T), pointer    :: grid_ptr
-    integer (c_int)              :: stat_indx
+    integer (c_int)                   :: stat_indx
     character (len=8)                 :: stats_description
-    character (len=:), allocatable    :: units_string
 
     nx = BNDS%iNumCols
     ny = BNDS%iNumRows
@@ -917,14 +922,6 @@ contains
 
       if ( output_files(stat_indx)%write_arcgrid) then
 
-        if ( options%annualize_stats .and. stat_indx == STATS_SUM ) then
-          units_string = asUppercase(trim(options%netcdf_variable_units_string)//"_per_year")
-        else
-          units_string = asUppercase(options%netcdf_variable_units_string)
-        endif
-
-        call replace(units_string, ' ', '_' )
-
         grid_ptr => output_files(stat_indx)%grid_ptr
         stats_description = output_files(stat_indx)%stats_description
 
@@ -934,12 +931,12 @@ contains
                      //"__"//trim(date_range_string)                               &
                      //"__"//asCharacter(nx)//"_by_"//asCharacter(ny)              &
                      //"__"//trim(stats_description)                               &
-                     //"__"//trim(units_string)//".asc"
+                     //"__"//trim(options%filename_modifier_string)//".asc"
         else
           filename = trim(options%netcdf_variable_name_string)                      &
                      //"__"//start_date%prettydate()//"_to_"//end_date%prettydate() &
                      //"__"//asCharacter(nx)//"_by_"//asCharacter(ny)               &
-                     //"__"//trim(units_string)//".asc"
+                     //"__"//trim(options%filename_modifier_string)//".asc"
         endif
 
         ! ugly hack to make the output match the default NODATA value

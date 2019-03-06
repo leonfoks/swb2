@@ -17,13 +17,16 @@ module string_list
     module procedure :: assign_string_list_to_string_list_sub
   end interface assignment(=)
 
+  integer (c_int), parameter :: MAX_ELEMENT_SIZE=256
+
   interface create_list
     procedure :: list_from_delimited_string_fn
   end interface create_list
 
   type STRING_LIST_ELEMENT_T
 
-    character (len=:), allocatable               :: s
+    !character (len=:), allocatable               :: s
+    character (len=256)                          :: s = ""
     type (STRING_LIST_ELEMENT_T), pointer        :: next => null()
 
   end type STRING_LIST_ELEMENT_T
@@ -31,11 +34,11 @@ module string_list
 
   type STRING_LIST_T
 
-    type (STRING_LIST_ELEMENT_T), pointer        :: first        => null()
-    type (STRING_LIST_ELEMENT_T), pointer        :: last         => null()
-    logical (c_bool)                        :: autocleanup  = TRUE
-    integer (c_int)                         :: count        = 0
-    logical (c_bool)                        :: is_populated = FALSE
+    type (STRING_LIST_ELEMENT_T), pointer    :: first
+    type (STRING_LIST_ELEMENT_T), pointer    :: last
+    logical (c_bool)                         :: autocleanup  = TRUE
+    integer (c_int)                          :: count        = 0
+    logical (c_bool)                         :: is_populated = FALSE
 
   contains
 
@@ -89,7 +92,7 @@ contains
   subroutine list_append_int_sub( this, iValue )
 
     class (STRING_LIST_T), intent(inout)   :: this
-    integer (c_int), intent(in)       :: iValue
+    integer (c_int), intent(in)            :: iValue
 
     call this%list_append_string_sub( asCharacter(iValue) )
 
@@ -100,7 +103,7 @@ contains
   subroutine list_set_auto_cleanup_sub( this, autocleanup )
 
     class (STRING_LIST_T), intent(inout)    :: this
-    logical (c_bool), intent(in)       :: autocleanup
+    logical (c_bool), intent(in)            :: autocleanup
 
     this%autocleanup = autocleanup
 
@@ -110,8 +113,8 @@ contains
 
   subroutine assign_string_list_to_string_list_sub(slList2, slList1)
 
-    type (STRING_LIST_T), intent(out)   :: slList2
-    type (STRING_LIST_T), intent(in)    :: slList1
+    type (STRING_LIST_T), intent(out)      :: slList2
+    type (STRING_LIST_T), intent(in)       :: slList1
 
     ! [ LOCALS ]
     integer (c_int) :: iIndex
@@ -132,12 +135,12 @@ contains
 
   subroutine list_append_string_sub( this, sText )
 
-    class (STRING_LIST_T), intent(inout)   :: this
-    character (len=*), intent(in) :: sText
+    class (STRING_LIST_T), intent(inout)    :: this
+    character (len=*), intent(in)           :: sText
 
     ! [ LOCALS ]
     type (STRING_LIST_ELEMENT_T), pointer   :: pNewElement
-    integer (c_int)                     :: iStat
+    integer (c_int)                         :: iStat
 
     pNewElement => null()
 
@@ -178,11 +181,11 @@ contains
   subroutine list_replace_value_at_index_sub(this, iIndex, sText)
 
     class (STRING_LIST_T), intent(in)        :: this
-    integer (c_int), intent(in)         :: iIndex
+    integer (c_int), intent(in)              :: iIndex
     character (len=*), intent(in)            :: sText
 
     ! [ LOCALS ]
-    integer (c_int)                      :: iCount
+    integer (c_int)                          :: iCount
     type (STRING_LIST_ELEMENT_T), pointer    :: current => null()
 
     iCount = 0
@@ -215,33 +218,44 @@ contains
   function list_get_value_at_index_fn(this, iIndex)   result(sText)
 
     class (STRING_LIST_T), intent(in)        :: this
-    integer (c_int), intent(in)         :: iIndex
+    integer (c_int), intent(in)              :: iIndex
     character (len=:), allocatable           :: sText
 
     ! [ LOCALS ]
-    integer (c_int)                      :: iCount
+    integer (c_int)                          :: iCount
+    logical (c_bool)                         :: found_matching
     type (STRING_LIST_ELEMENT_T), pointer    :: current => null()
 
     iCount = 1
+    found_matching = FALSE
 
     current => this%first
 
-    do while ( associated( current ) .and. ( iCount <= this%count ) )
+    do while ( associated( current ) )
 
-      if (iCount == iIndex)  exit
+      if (iCount > this%count ) exit
+
+      if (iCount == iIndex) then
+        found_matching = TRUE
+        exit
+      endif
+
       current => current%next
       iCount = iCount + 1
     enddo
 
     sText = "<NA>"
 
-    if (associated(current) ) then
+    if (associated(current)) then
 
-      if ( allocated( current%s) )  then
-        sText = current%s
-      endif
+!      if ( allocated( current%s) )  then
+!        print *, "'"//trim(current%s)//"'"
+      if (found_matching)  sText = trim(current%s)
+!      endif
 
     endif
+
+!    print *, trim(__SRCNAME__), ": ", __LINE__
 
   end function list_get_value_at_index_fn
 
@@ -251,12 +265,12 @@ contains
   function list_get_values_in_range_fn(this, iStartIndex, iEndIndex)   result(sText)
 
     class (STRING_LIST_T), intent(in)        :: this
-    integer (c_int), intent(in)         :: iStartIndex
-    integer (c_int), intent(in)         :: iEndIndex
+    integer (c_int), intent(in)              :: iStartIndex
+    integer (c_int), intent(in)              :: iEndIndex
     character (len=:), allocatable           :: sText
 
     ! [ LOCALS ]
-    integer (c_int)                      :: iCount
+    integer (c_int)                          :: iCount
     type (STRING_LIST_ELEMENT_T), pointer    :: current => null()
 
     iCount = 0
@@ -314,13 +328,14 @@ contains
     write(iLU_l, fmt="('|',a,t21,'|',a,t62,'|')") "Index","Value"
     write(iLU_l, fmt="('|',a,t21,'|',a,t62,'|')") repeat("-",18)//":", repeat("-",39)//":"
 
-    do while ( associated( current ) .and. iCount < this%count )
+    do while ( associated( current ) )
 
-      iCount = iCount + 1
+      if (iCount > this%count ) exit
 
       write(iLU_l, fmt="('|',a,t21,'|',a,t62,'|')") asCharacter(iCount), current%s
 
       current => current%next
+      iCount = iCount + 1
 
     enddo
 
@@ -337,9 +352,9 @@ contains
 
     ! [ LOCALS ]
     type (STRING_LIST_ELEMENT_T), pointer    :: current => null()
-    integer (c_int)                      :: iLU_l
-    integer (c_int)                      :: iCount
-    character (len=2048)                      :: sBuf
+    integer (c_int)                          :: iLU_l
+    integer (c_int)                          :: iCount
+    character (len=2048)                     :: sBuf
 
     current => this%first
     iCount = 0
@@ -372,9 +387,9 @@ contains
 
     ! [ LOCALS ]
     type (STRING_LIST_ELEMENT_T), pointer    :: current => null()
-    integer (c_int)                      :: iLU_l
-    integer (c_int)                      :: iCount
-    character (len=2048)                      :: sBuf
+    integer (c_int)                          :: iLU_l
+    integer (c_int)                          :: iCount
+    character (len=2048)                     :: sBuf
 
     current => this%first
     iCount = 0
@@ -412,12 +427,12 @@ contains
   function list_return_all_as_float_fn(this)    result(rValues)
 
     class (STRING_LIST_T), intent(in)     :: this
-    real (c_float), allocatable      :: rValues(:)
+    real (c_float), allocatable           :: rValues(:)
 
     ! [ LOCALS ]
     type (STRING_LIST_ELEMENT_T), pointer    :: current => null()
-    integer (c_int)                      :: iStat
-    integer (c_int)                      :: iIndex
+    integer (c_int)                          :: iStat
+    integer (c_int)                          :: iIndex
 
     allocate( rValues( 1:this%count ), stat=iStat )
     if (iStat /= 0)  call die("Failed to allocate memory for list conversion", __SRCNAME__, __LINE__)
@@ -442,13 +457,13 @@ contains
 
     class (STRING_LIST_T), intent(in)     :: this
     character (len=64), allocatable       :: sValues(:)
-    logical (c_bool), optional       :: null_terminated
+    logical (c_bool), optional            :: null_terminated
 
     ! [ LOCALS ]
     type (STRING_LIST_ELEMENT_T), pointer    :: current => null()
-    integer (c_int)                      :: iStat
-    integer (c_int)                      :: iIndex
-    logical (c_bool)                     :: null_terminated_l
+    integer (c_int)                          :: iStat
+    integer (c_int)                          :: iIndex
+    logical (c_bool)                         :: null_terminated_l
 
     if ( present( null_terminated) ) then
       null_terminated_l = null_terminated
@@ -483,12 +498,12 @@ contains
   function list_return_all_as_int_fn(this)    result(iValues)
 
     class (STRING_LIST_T), intent(in)     :: this
-    integer (c_int), allocatable     :: iValues(:)
+    integer (c_int), allocatable          :: iValues(:)
 
     ! [ LOCALS ]
     type (STRING_LIST_ELEMENT_T), pointer    :: current => null()
-    integer (c_int)                      :: iStat
-    integer (c_int)                      :: iIndex
+    integer (c_int)                          :: iStat
+    integer (c_int)                          :: iIndex
 
     allocate( iValues(this%count ), stat=iStat )
     if (iStat /= 0)  call die("Failed to allocate memory for list conversion", __SRCNAME__, __LINE__)
@@ -513,12 +528,12 @@ contains
   function list_return_all_as_logical_fn(this)    result(lValues)
 
     class (STRING_LIST_T), intent(in)     :: this
-    logical (c_bool), allocatable     :: lValues(:)
+    logical (c_bool), allocatable         :: lValues(:)
 
     ! [ LOCALS ]
     type (STRING_LIST_ELEMENT_T), pointer    :: current => null()
-    integer (c_int)                      :: iStat
-    integer (c_int)                      :: iIndex
+    integer (c_int)                          :: iStat
+    integer (c_int)                          :: iIndex
 
     allocate( lValues( this%count ), stat=iStat )
     if (iStat /= 0)  call die("Failed to allocate memory for list conversion", __SRCNAME__, __LINE__)
@@ -549,7 +564,7 @@ contains
     ! [ LOCALS ]
     character (len=:), allocatable :: sTempText
     character (len=:), allocatable :: sTempArg
-    character (len=256)                :: delimiters_l
+    character (len=256)            :: delimiters_l
 
     if ( present( delimiters ) ) then
       delimiters_l = delimiters
@@ -589,7 +604,7 @@ contains
     ! [ LOCALS ]
     character (len=:), allocatable    :: sTempText
     character (len=:), allocatable    :: sTempArg
-    character (len=256)    :: delimiters_l
+    character (len=256)               :: delimiters_l
 
     if ( present( delimiters ) ) then
       delimiters_l = delimiters
@@ -621,13 +636,13 @@ contains
   function list_are_there_empty_entries_fn( this )  result( lResult )
 
     class (STRING_LIST_T), intent(in)       :: this
-    logical (c_bool)                   :: lResult
+    logical (c_bool)                        :: lResult
 
     ! [ LOCALS ]
-    integer (c_int)                        :: iIndex
-    integer (c_int)                        :: iStat
-    integer (c_int)                        :: iCount
-    type (STRING_LIST_ELEMENT_T), pointer       :: current
+    integer (c_int)                         :: iIndex
+    integer (c_int)                         :: iStat
+    integer (c_int)                         :: iCount
+    type (STRING_LIST_ELEMENT_T), pointer   :: current
 
     iCount = 0
     iIndex = 0
@@ -657,7 +672,7 @@ contains
 
     class (STRING_LIST_T), intent(in) :: this
     character (len=*), intent(in)     :: sChar
-    logical (c_bool)             :: lResult
+    logical (c_bool)                  :: lResult
 
     ! [ LOCALS ]
     integer (c_int) :: iCount
@@ -678,9 +693,9 @@ contains
 
   function list_return_count_of_matching_string_fn(this, sChar) result(iCount)
 
-    class (STRING_LIST_T), intent(in) :: this
-    character (len=*), intent(in) :: sChar
-    integer (c_int) :: iCount
+    class (STRING_LIST_T), intent(in)    :: this
+    character (len=*), intent(in)        :: sChar
+    integer (c_int)                      :: iCount
 
     ! [ LOCALS ]
     integer (c_int) :: iIndex
@@ -713,9 +728,9 @@ contains
 
   function list_return_position_of_matching_string_fn(this, sChar)     result(iResult)
 
-    class (STRING_LIST_T), intent(in)                    :: this
-    character (len=*), intent(in)                        :: sChar
-    integer (c_int), dimension(:), allocatable      :: iResult
+    class (STRING_LIST_T), intent(in)            :: this
+    character (len=*), intent(in)                :: sChar
+    integer (c_int), dimension(:), allocatable   :: iResult
 
     ! [ LOCALS ]
     integer (c_int) :: iIndex
@@ -765,9 +780,9 @@ contains
 
   function list_subset_partial_matches_fn( this, sChar )     result(newList)
 
-    class (STRING_LIST_T), intent(in)                    :: this
-    character (len=*), intent(in)                        :: sChar
-    type (STRING_LIST_T)                                 :: newList
+    class (STRING_LIST_T), intent(in)               :: this
+    character (len=*), intent(in)                   :: sChar
+    type (STRING_LIST_T)                            :: newList
 
     ! [ LOCALS ]
     integer (c_int) :: iIndex
@@ -830,7 +845,8 @@ contains
 
         current => current%next
 
-        if ( allocated( toremove%s ) )    deallocate( toremove%s )
+        ! this statement not needed if string element is not allocatable
+        !if ( allocated( toremove%s ) )    deallocate( toremove%s )
 
         if ( associated( toremove ) )  deallocate( toremove )
 

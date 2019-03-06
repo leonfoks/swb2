@@ -333,7 +333,7 @@ contains
     character (len=MAX_STR_LEN)           :: sString
     character (len=MAX_STR_LEN)           :: sSubString
     character (len=MAX_STR_LEN)           :: sSubStringClean
-    integer (c_int)                  :: column_count
+    integer (c_int)                       :: column_count
 
     this%sBuf = this%readline()
     column_count = 0

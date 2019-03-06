@@ -32,6 +32,7 @@ add_definitions("-DGIT_COMMITS_ON_BRANCH=${GIT_COMMITS_ON_BRANCH}")
 configure_file(
   ${CMAKE_SOURCE_DIR}/src/version_control.tpl
   ${CMAKE_SOURCE_DIR}/src/generated/version_control.F90
+  ESCAPE_QUOTES
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/src/generated)

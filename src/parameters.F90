@@ -136,6 +136,8 @@ contains
 
         !call DF%slColNames%print()
 
+        print *, "Processing lookup table: ", squote(this%filenames%get(iFileIndex))
+
         ! loop over each column header
         do iColIndex = 1, DF%slColNames%count
 
@@ -148,8 +150,12 @@ contains
           call assert(iStat == 0, "Failed to allocate memory for dictionary object", &
               __SRCNAME__, __LINE__ )
 
+          print *, "Looping over columns: ", iColIndex, " of ", DF%slColNames%count
+
           ! this is first obvious failure point when compiling under Intel
           tempstr = DF%slColNames%get(iColIndex)
+
+          print *, squote(tempstr)
 
           if ( PARAMS_DICT%key_already_in_use( tempstr ) ) then
 
