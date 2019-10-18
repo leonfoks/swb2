@@ -5,5 +5,5 @@ else()
     message("Using NetCDF installed at ${NETCDF4_F_ROOT}")
 
     set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -I${NETCDF4_F_ROOT}/include")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${NETCDF4_F_ROOT}/lib -l")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${NETCDF4_F_ROOT}/lib -lnetcdf")
 endif()

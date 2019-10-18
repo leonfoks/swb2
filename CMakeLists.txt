@@ -41,7 +41,7 @@ include(${CMAKE_MODULE_PATH}/FortranEnvironment.cmake)
 #set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".so" ${CMAKE_FIND_LIBRARY_SUFFIXES})
 
 include( ${CMAKE_MODULE_PATH}/version_control.cmake )
-include( ${CMAKE_MODULE_PATH}/zlib.cmake )
+# include( ${CMAKE_MODULE_PATH}/zlib.cmake )
 include( ${CMAKE_MODULE_PATH}/hdf5.cmake )
 include( ${CMAKE_MODULE_PATH}/netcdf4.cmake )
 

@@ -43,11 +43,11 @@ endif(BT STREQUAL "RELEASE")
 # ================================
 # Find the openmp package and add compiler-specific flags
 # ================================
-find_package(OpenMP)
-if(OPENMP_FOUND)
-  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${OpenMP_Fortran_FLAGS}")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
+# find_package(OpenMP)
+# if(OPENMP_FOUND)
+#   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${OpenMP_Fortran_FLAGS}")
+#   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+# endif()
 # ++++++++++++++++++++++++++++++++
 
 # ================================
