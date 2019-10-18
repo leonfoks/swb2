@@ -263,5 +263,5 @@ target_link_libraries( swb_lib proj4_lib combinedLib)
 add_executable(swb2 main.F90 )
 target_link_libraries( swb2 proj4_lib swb_lib)
 
-add_executable(swbstats2 swbstats2.F90 swbstats2_support.F90)
-target_link_libraries( swbstats2 proj4_lib swb_lib )
+# add_executable(swbstats2 swbstats2.F90 swbstats2_support.F90)
+# target_link_libraries( swbstats2 proj4_lib swb_lib )

@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.1)
+
 # CMake project for swb2
 
 message("Processing top-level CMakelists.txt for project swb2")
@@ -24,16 +26,24 @@ enable_language (Fortran C)
 SET(CPACK_GENERATOR "TGZ")
 include(CPack)
 
+# Add our local modules to the module path
+if(NOT CMAKE_MODULE_PATH)
+  set(CMAKE_MODULE_PATH)
+endif()
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-cmake_minimum_required(VERSION 3.1)
+include(${CMAKE_MODULE_PATH}/FortranEnvironment.cmake)
+
+
 #set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".so" ${CMAKE_FIND_LIBRARY_SUFFIXES})
 
-include( cmake/version_control.cmake )
-include( cmake/FindZlib.cmake )
-include( cmake/FindHDF5.cmake )
-include( cmake/FindHDF5_HL.cmake )
-include( cmake/FindNetCDF.cmake )
+include( ${CMAKE_MODULE_PATH}/version_control.cmake )
+include( ${CMAKE_MODULE_PATH}/zlib.cmake )
+include( ${CMAKE_MODULE_PATH}/hdf5.cmake )
+include( ${CMAKE_MODULE_PATH}/netcdf4.cmake )
 
 #if(MSVC)
   # Automatically adds compiler definitions to all subdirectories too.
@@ -44,12 +54,12 @@ include( cmake/FindNetCDF.cmake )
 #endif(MSVC)
 
 #link_libraries( "-static" )
-include_directories( ${CMAKE_BINARY_DIR}/src ${PROJECT_SOURCE_DIR}/src/proj4 )
+include_directories( ${CMAKE_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/src/proj4 )
 
 include( cmake/print_summary.cmake )
 
 add_subdirectory(src)
-add_subdirectory(test/unit_tests)
+# add_subdirectory(test/unit_tests)
 
 if ( CMAKE_HOST_WIN32 )
   set( OUTPUT_BIN_TARGET_DIR win_x86 )
@@ -72,13 +82,13 @@ set( OUTPUT_BIN_TARGET_DIR ${PROJECT_SOURCE_DIR}/bin/${OUTPUT_BIN_TARGET_DIR} )
 
 if ( WIN32 )
   add_custom_target(copy ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/src/swb2.exe ${OUTPUT_BIN_TARGET_DIR}/swb2.exe
-                 COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/src/swbstats2.exe ${OUTPUT_BIN_TARGET_DIR}/swbstats2.exe
-		             COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/test/unit_tests/swbtest.exe ${PROJECT_SOURCE_DIR}/test/unit_tests/swbtest.exe
+                #  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/src/swbstats2.exe ${OUTPUT_BIN_TARGET_DIR}/swbstats2.exe
+		            #  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/test/unit_tests/swbtest.exe ${PROJECT_SOURCE_DIR}/test/unit_tests/swbtest.exe
   )
 else()
   add_custom_target(copy ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/src/swb2 ${OUTPUT_BIN_TARGET_DIR}/swb2
-                 COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/src/swbstats2 ${OUTPUT_BIN_TARGET_DIR}/swbstats2
-                 COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/test/unit_tests/swbtest ${PROJECT_SOURCE_DIR}/test/unit_tests/swbtest
+                #  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/src/swbstats2 ${OUTPUT_BIN_TARGET_DIR}/swbstats2
+                #  COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/test/unit_tests/swbtest ${PROJECT_SOURCE_DIR}/test/unit_tests/swbtest
   )
 endif()
 
