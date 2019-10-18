@@ -30,20 +30,19 @@ include(CPack)
 if(NOT CMAKE_MODULE_PATH)
   set(CMAKE_MODULE_PATH)
 endif()
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_fortran/cmake")
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-include(${CMAKE_MODULE_PATH}/FortranEnvironment.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake_fortran/cmake/FortranEnvironment.cmake)
 
 
 #set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".so" ${CMAKE_FIND_LIBRARY_SUFFIXES})
 
-include( ${CMAKE_MODULE_PATH}/version_control.cmake )
+include( ${CMAKE_SOURCE_DIR}/cmake/version_control.cmake )
 # include( ${CMAKE_MODULE_PATH}/zlib.cmake )
-include( ${CMAKE_MODULE_PATH}/hdf5.cmake )
-include( ${CMAKE_MODULE_PATH}/netcdf4.cmake )
+include( ${CMAKE_SOURCE_DIR}/cmake_fortran/cmake/hdf5.cmake )
+include( ${CMAKE_SOURCE_DIR}/cmake_fortran/cmake/netcdf4.cmake )
 
 #if(MSVC)
   # Automatically adds compiler definitions to all subdirectories too.
