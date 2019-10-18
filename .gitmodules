@@ -1,0 +1,4 @@
+[submodule "cmake_fortran"]
+	path = cmake_fortran
+	url = https://github.com/leonfoks/cmake_fortran.git
+	branch = master
