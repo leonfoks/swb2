@@ -1,5 +1,8 @@
 [![Build Status](https://travis-ci.org/smwesten-usgs/swb2.svg?branch=master)](https://travis-ci.org/smwesten-usgs/swb2)
 
+Pull this repository recursively using
+git clone --recursive
+
 SWB2 - A Modified Thornthwaite-Mather Soil-Water-Balance Code for Estimating Groundwater Recharge
 ------------------------------------------------------------------------------------------------
 
